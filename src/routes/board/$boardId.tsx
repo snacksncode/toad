@@ -1,0 +1,447 @@
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { supabase } from "@/lib/supabase"
+import { AppSidebar } from "@/components/layout/sidebar"
+import { AppHeader } from "@/components/layout/header"
+import { SidebarProvider } from "@/components/ui/sidebar"
+import { Column } from "@/components/board/column"
+import { AddColumnButton } from "@/components/board/add-column-button"
+import { BoardSettings } from "@/components/board/board-settings"
+import { IssuePanel } from "@/components/board/issue-panel"
+import { QuickAddFab } from "@/components/board/quick-add-fab"
+import { FilterBar } from "@/components/board/filter-bar"
+import type { FilterState } from "@/components/board/filter-bar"
+import { getProjectMembers } from "@/lib/queries/members"
+import { Button } from "@/components/ui/button"
+import {
+  getProjectColumns,
+  createColumn,
+  updateColumn,
+  reorderColumns,
+  deleteColumn,
+} from "@/lib/queries/columns"
+import { getProjectIssues, moveIssue, reorderIssues } from "@/lib/queries/issues"
+import { updateProject, deleteProject } from "@/lib/queries/projects"
+import type { Column as ColumnType, Issue, ProjectMember } from "@/lib/database.types"
+import { toast } from "sonner"
+import { Loader2, Columns3, Settings } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
+import { DragDropProvider } from "@dnd-kit/react"
+import { PointerSensor, PointerActivationConstraints } from "@dnd-kit/dom"
+import { move } from "@dnd-kit/helpers"
+
+export const Route = createFileRoute("/board/$boardId")({
+  beforeLoad: async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session) {
+      throw redirect({ to: "/login" })
+    }
+  },
+  component: BoardPage,
+})
+
+function BoardPage() {
+  const { boardId } = Route.useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [boardName, setBoardName] = useState<string>("")
+  const [columns, setColumns] = useState<ColumnType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
+  const [members, setMembers] = useState<ProjectMember[]>([])
+  const [filters, setFilters] = useState<FilterState>({
+    search: "",
+    assigneeEmail: null,
+    priority: null,
+    label: null,
+  })
+
+  // DnD state: columnId → issueId[] for visual ordering during drag
+  const [items, setItems] = useState<Record<string, string[]>>({})
+  const itemsSnapshotRef = useRef<Record<string, string[]>>({})
+  const itemsRef = useRef<Record<string, string[]>>({})
+
+  // Keep itemsRef in sync for use in async handlers
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
+
+  // Sync items from issues + columns
+  useEffect(() => {
+    const map: Record<string, string[]> = {}
+    for (const col of columns) {
+      map[col.id] = issues
+        .filter((i) => i.column_id === col.id)
+        .sort((a, b) => a.position - b.position)
+        .map((i) => i.id)
+    }
+    setItems(map)
+  }, [issues, columns])
+
+  const fetchBoard = useCallback(async () => {
+    const { data } = await supabase
+      .from("projects")
+      .select("name")
+      .eq("id", boardId)
+      .single()
+    if (data) setBoardName(data.name)
+  }, [boardId])
+
+  const fetchColumns = useCallback(async () => {
+    try {
+      const data = await getProjectColumns(boardId)
+      setColumns(data)
+    } catch {
+      toast.error("Failed to load columns")
+    }
+  }, [boardId])
+
+  const fetchIssues = useCallback(async () => {
+    try {
+      const data = await getProjectIssues(boardId)
+      setIssues(data)
+    } catch {
+      toast.error("Failed to load issues")
+    }
+  }, [boardId])
+
+  const fetchMembers = useCallback(async () => {
+    try {
+      const data = await getProjectMembers(boardId)
+      setMembers(data)
+    } catch {
+      // Non-critical — filter still works without members
+    }
+  }, [boardId])
+
+
+  useEffect(() => {
+    setLoading(true)
+    Promise.all([fetchBoard(), fetchColumns(), fetchIssues(), fetchMembers()]).finally(() =>
+      setLoading(false)
+    )
+  }, [fetchBoard, fetchColumns, fetchIssues, fetchMembers])
+
+  const handleCreateColumn = useCallback(
+    async (name: string) => {
+      try {
+        await createColumn(boardId, name)
+        await fetchColumns()
+      } catch {
+        toast.error("Failed to create column")
+      }
+    },
+    [boardId, fetchColumns]
+  )
+
+  const handleRenameColumn = useCallback(
+    async (columnId: string, name: string) => {
+      try {
+        await updateColumn(columnId, { name })
+        await fetchColumns()
+      } catch {
+        toast.error("Failed to rename column")
+      }
+    },
+    [fetchColumns]
+  )
+
+  const handleDeleteColumn = useCallback(
+    async (columnId: string) => {
+      try {
+        await deleteColumn(columnId)
+        await fetchColumns()
+      } catch (err: unknown) {
+        const pgError = err as { code?: string }
+        if (pgError.code === "23503") {
+          toast.error(
+            "Cannot delete column with issues. Move or delete issues first."
+          )
+        } else {
+          toast.error("Failed to delete column")
+        }
+      }
+    },
+    [fetchColumns]
+  )
+
+  const handleMoveColumn = useCallback(
+    async (columnId: string, direction: "left" | "right") => {
+      const idx = columns.findIndex((c) => c.id === columnId)
+      if (idx === -1) return
+
+      const swapIdx = direction === "left" ? idx - 1 : idx + 1
+      if (swapIdx < 0 || swapIdx >= columns.length) return
+
+      const newOrder = [...columns]
+      const temp = newOrder[idx]
+      newOrder[idx] = newOrder[swapIdx]
+      newOrder[swapIdx] = temp
+
+      // Optimistic update
+      setColumns(newOrder)
+
+      try {
+        await reorderColumns(
+          boardId,
+          newOrder.map((c) => c.id)
+        )
+        await fetchColumns()
+      } catch {
+        // Revert on failure
+        await fetchColumns()
+        toast.error("Failed to reorder columns")
+      }
+    },
+    [columns, boardId, fetchColumns]
+  )
+
+  const handleIssueCreated = useCallback(
+    async (_issue: Issue) => {
+      await fetchIssues()
+    },
+    [fetchIssues]
+  )
+
+  const filteredIssues = useMemo(
+    () =>
+      issues.filter((issue) => {
+        if (
+          filters.search &&
+          !issue.title.toLowerCase().includes(filters.search.toLowerCase())
+        )
+          return false
+        if (
+          filters.assigneeEmail &&
+          issue.assignee_email !== filters.assigneeEmail
+        )
+          return false
+        if (filters.priority && issue.priority !== filters.priority)
+          return false
+        if (filters.label && !issue.labels.includes(filters.label))
+          return false
+        return true
+      }),
+    [issues, filters]
+  )
+
+  // Issue lookup map for DnD rendering
+  const issueMap = useMemo(() => {
+    const map = new Map<string, Issue>()
+    for (const issue of issues) {
+      map.set(issue.id, issue)
+    }
+    return map
+  }, [issues])
+
+  // Filtered issue IDs for efficient lookup
+  const filteredIssueIds = useMemo(
+    () => new Set(filteredIssues.map((i) => i.id)),
+    [filteredIssues]
+  )
+
+  // Get ordered + filtered issues for a column (driven by items state)
+  const getColumnIssues = useCallback(
+    (columnId: string): Issue[] => {
+      const ids = items[columnId] ?? []
+      return ids
+        .filter((id) => filteredIssueIds.has(id))
+        .map((id) => issueMap.get(id))
+        .filter((issue): issue is Issue => issue !== undefined)
+    },
+    [items, filteredIssueIds, issueMap]
+  )
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full">
+        <AppSidebar activeBoardId={boardId} />
+        <div className="flex flex-col flex-1 min-w-0">
+          <AppHeader showSidebarTrigger />
+          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4 border-b shrink-0">
+            <Columns3 className="size-5 text-muted-foreground" />
+            <h1 className="text-base sm:text-lg font-semibold truncate">
+              {boardName || "Loading…"}
+            </h1>
+            <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">
+              {columns.length} {columns.length === 1 ? "column" : "columns"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setSettingsOpen(true)}
+              title="Board settings"
+              className="ml-auto"
+            >
+              <Settings className="size-4" />
+            </Button>
+          </div>
+          {!loading && (
+            <FilterBar
+              issues={issues}
+              members={members}
+              filters={filters}
+              onFiltersChange={setFilters}
+              totalCount={issues.length}
+              filteredCount={filteredIssues.length}
+            />
+          )}
+          <main className="flex-1 overflow-x-auto overflow-y-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <DragDropProvider
+                sensors={[
+                  PointerSensor.configure({
+                    activationConstraints: (event) => {
+                      if (event.pointerType === "touch") {
+                        return [
+                          new PointerActivationConstraints.Delay({ value: 200, tolerance: 5 }),
+                        ]
+                      }
+                      // Mouse: small distance to prevent accidental drags on click
+                      return [
+                        new PointerActivationConstraints.Distance({ value: 5 }),
+                      ]
+                    },
+                  }),
+                ]}
+                onDragStart={() => {
+                  // Snapshot for cancel revert
+                  const snapshot: Record<string, string[]> = {}
+                  for (const [k, v] of Object.entries(items)) {
+                    snapshot[k] = [...v]
+                  }
+                  itemsSnapshotRef.current = snapshot
+                }}
+                onDragOver={(event) => {
+                  setItems((currentItems) => move(currentItems, event))
+                }}
+                onDragEnd={async (event) => {
+                  if (event.canceled) {
+                    setItems(itemsSnapshotRef.current)
+                    return
+                  }
+
+                  const source = event.operation.source
+                  if (!source) return
+
+                  const issueId = String(source.id)
+                  const currentItems = itemsRef.current
+
+                  // Find which column the issue landed in
+                  let newColumnId: string | null = null
+                  let newPosition = 0
+                  for (const [colId, ids] of Object.entries(currentItems)) {
+                    const idx = ids.indexOf(issueId)
+                    if (idx !== -1) {
+                      newColumnId = colId
+                      newPosition = idx
+                      break
+                    }
+                  }
+
+                  if (!newColumnId) return
+
+                  const issue = issueMap.get(issueId)
+                  if (!issue) return
+
+                  const originalColumnId = issue.column_id
+
+                  try {
+                    if (originalColumnId !== newColumnId) {
+                      // Cross-column move
+                      await moveIssue(issueId, newColumnId, newPosition)
+                      // Reorder both columns
+                      const targetIds = currentItems[newColumnId] ?? []
+                      if (targetIds.length > 0) {
+                        await reorderIssues(newColumnId, targetIds)
+                      }
+                      const origIds = currentItems[originalColumnId] ?? []
+                      if (origIds.length > 0) {
+                        await reorderIssues(originalColumnId, origIds)
+                      }
+                    } else {
+                      // Same column reorder
+                      const colIds = currentItems[newColumnId] ?? []
+                      await reorderIssues(newColumnId, colIds)
+                    }
+                    // Refetch to sync with DB
+                    await fetchIssues()
+                  } catch {
+                    setItems(itemsSnapshotRef.current)
+                    toast.error("Failed to move issue")
+                  }
+                }}
+              >
+                <div className="flex gap-3 sm:gap-4 p-3 sm:p-6 h-full items-start">
+                  {columns.map((col, idx) => (
+                    <Column
+                      key={col.id}
+                      column={col}
+                      projectId={boardId}
+                      issues={getColumnIssues(col.id)}
+                      isFirst={idx === 0}
+                      isLast={idx === columns.length - 1}
+                      onRename={(name) => handleRenameColumn(col.id, name)}
+                      onDelete={() => handleDeleteColumn(col.id)}
+                      onMoveLeft={() => handleMoveColumn(col.id, "left")}
+                      onMoveRight={() => handleMoveColumn(col.id, "right")}
+                      onIssueCreated={handleIssueCreated}
+                      onIssueClick={(issue) => setSelectedIssue(issue)}
+                    />
+                  ))}
+                  <AddColumnButton onAdd={handleCreateColumn} />
+                </div>
+              </DragDropProvider>
+            )}
+          </main>
+        </div>
+        {user && (
+          <BoardSettings
+            projectId={boardId}
+            projectName={boardName}
+            currentUserId={user.id}
+            onRename={async (newName) => {
+              await updateProject(boardId, newName)
+              setBoardName(newName)
+              setSettingsOpen(false)
+            }}
+            onDelete={async () => {
+              await deleteProject(boardId)
+              navigate({ to: "/dashboard" })
+            }}
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+          />
+        )}
+        <IssuePanel
+          issue={selectedIssue}
+          projectId={boardId}
+          columns={columns}
+          open={selectedIssue !== null}
+          onOpenChange={(open) => { if (!open) setSelectedIssue(null) }}
+          onIssueUpdated={(updated) => {
+            setIssues(prev => prev.map(i => i.id === updated.id ? updated : i))
+            setSelectedIssue(updated)
+          }}
+          onIssueDeleted={(id) => {
+            setIssues(prev => prev.filter(i => i.id !== id))
+            setSelectedIssue(null)
+          }}
+        />
+        <QuickAddFab
+          columns={columns}
+          projectId={boardId}
+          onCreated={handleIssueCreated}
+        />
+      </div>
+    </SidebarProvider>
+  )
+}

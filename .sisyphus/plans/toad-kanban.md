@@ -125,12 +125,12 @@ Go to [Supabase Dashboard → Toad → Settings → API](https://supabase.com/da
 
 Copy these two values:
 - **Project URL**: `https://wdnzqeilwqjuyjeaxjbs.supabase.co` (you already have this)
-- **anon public key**: (under "Project API keys" → `anon` `public`)
+- **Publishable key**: (under "Connect" → "API Keys" or the TanStack Start connect template — starts with `sb_publishable_`)
 
 Create a `.env` file in the project root:
 ```
 VITE_SUPABASE_URL=https://wdnzqeilwqjuyjeaxjbs.supabase.co
-VITE_SUPABASE_ANON_KEY=<paste your anon key here>
+VITE_SUPABASE_KEY=<paste your publishable key here>
 ```
 
 ### 2. Enable Email Auth Provider
@@ -151,7 +151,7 @@ The agent (Task 7) will attempt to do this, but if it can't access the dashboard
 
 ### 4. Vercel Setup (when Task 4 runs)
 - Create a Vercel project linked to this repo (or the agent will use `npx vercel`)
-- Set env vars in Vercel dashboard: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
+- Set env vars in Vercel dashboard: `VITE_SUPABASE_URL` + `VITE_SUPABASE_KEY`
 - Framework preset: **Other** (not auto-detect)
 
 ---
@@ -263,11 +263,10 @@ Wave 7 (Polish — 2 parallel):
 ├── Task 19: Mobile responsive + touch DnD tuning (depends: 17, 15, 16) [deep]
 └── Task 20: Final Vercel deploy + smoke test (depends: all) [quick]
 
-Wave FINAL (Verification — 4 parallel):
-├── F1: Plan compliance audit [oracle]
-├── F2: Code quality review [deep]
-├── F3: Real manual QA [deep]
-└── F4: Scope fidelity check [deep]
+Wave FINAL (Verification — 3 parallel):
+├── F1: Build + type check [quick]
+├── F2: Code quality scan [deep]
+└── F3: Scope fidelity check [deep]
 
 Critical Path: T1 → T3 → T8 → T11 → T14 → T17 → T19 → T20 → FINAL
 Parallel Speedup: ~60% faster than sequential
@@ -297,27 +296,28 @@ Max Concurrent: 5 (Wave 2)
 | 17 | 14, 11 | 19 | 6 |
 | 18 | 14 | 19 | 6 |
 | 19 | 17, 15, 16 | 20 | 7 |
-| 20 | all | F1–F4 | 7 |
+| 20 | all | F1–F3 | 7 |
 
 ### Agent Dispatch Summary
 
 | Wave | Tasks | Categories |
 |------|-------|-----------|
-| 1 | 2 | T1 → `quick`, T2 → `deep` |
-| 2 | 5 | T3 → `quick`, T4 → `quick`, T5 → `quick`, T6 → `deep`, T7 → `quick` |
-| 3 | 2 | T8 → `deep`, T9 → `quick` |
-| 4 | 4 | T10 → `deep`, T11 → `deep`, T12 → `deep`, T13 → `quick` |
-| 5 | 1 | T14 → `deep` |
-| 6 | 4 | T15 → `deep`, T16 → `deep`, T17 → `deep`, T18 → `deep` |
-| 7 | 2 | T19 → `deep`, T20 → `quick` |
-| FINAL | 4 | F1 → `oracle`, F2 → `deep`, F3 → `deep`, F4 → `deep` |
+| 1 | 2 | T1 → `visual-engineering`, T2 → `visual-engineering` |
+| 2 | 5 | T3 → `visual-engineering`, T4 → `visual-engineering`, T5 → `visual-engineering`, T6 → `visual-engineering`, T7 → `visual-engineering` |
+| 3 | 2 | T8 → `visual-engineering`, T9 → `visual-engineering` |
+| 4 | 4 | T10 → `visual-engineering`, T11 → `visual-engineering`, T12 → `visual-engineering`, T13 → `visual-engineering` |
+| 5 | 1 | T14 → `visual-engineering` |
+| 6 | 4 | T15 → `visual-engineering`, T16 → `visual-engineering`, T17 → `visual-engineering`, T18 → `visual-engineering` |
+| 7 | 2 | T19 → `visual-engineering`, T20 → `visual-engineering` |
+| FINAL | 3 | F1 → `visual-engineering`, F2 → `visual-engineering`, F3 → `visual-engineering` |
 
 ---
 
 ## TODOs
 
-> Implementation tasks below. EVERY task has: Agent Profile + Parallelization + References + QA Scenarios.
-> **A task WITHOUT QA Scenarios is INCOMPLETE.**
+> Implementation tasks below. EVERY task has: Agent Profile + Parallelization + References.
+> QA Scenarios in tasks are **informational only** — agents should NOT execute them during this run.
+> Focus: build it, make it compile, make it work.
 
 ### Wave 1: Foundation
 
@@ -327,7 +327,7 @@ Max Concurrent: 5 (Wave 2)
   - Run `npx shadcn@latest init -t tanstack` to scaffold the full TanStack Start project with shadcn, Tailwind CSS v4, and path aliases
   - Configure SPA mode in `vite.config.ts`: add `spa: { enabled: true }` to the tanstackStart plugin options
   - Verify the project builds with `npm run build` and starts with `npm run dev`
-  - Add `.env` and `.env.example` with placeholder Supabase vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+  - Add `.env` and `.env.example` with placeholder Supabase vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY`
   - Add basic `vercel.json` with the SPA rewrite rule: `{ "rewrites": [{ "source": "/(.*)", "destination": "/_shell.html" }] }`
   - Ensure `__root.tsx` renders a clean shell without any server-data dependencies
 
@@ -337,7 +337,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT add Supabase client code yet (Task 3)
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`]
     - `react-doctor`: Verify scaffold output is clean React, catch any config issues early
 
@@ -357,7 +357,7 @@ Max Concurrent: 5 (Wave 2)
   - [ ] `npm run build` succeeds with zero errors
   - [ ] `npm run dev` serves the app at localhost
   - [ ] `vite.config.ts` contains `spa: { enabled: true }`
-  - [ ] `.env.example` has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+  - [ ] `.env.example` has `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY`
   - [ ] `vercel.json` contains rewrite to `/_shell.html`
 
   **QA Scenarios:**
@@ -421,7 +421,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT create RLS policies for `anon` role — all policies use `TO authenticated`
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: []
     - Pure SQL task, no framework skills needed
 
@@ -476,7 +476,7 @@ Max Concurrent: 5 (Wave 2)
 
   **What to do**:
   - Install `@supabase/supabase-js`
-  - Create `src/lib/supabase.ts` — initialize Supabase client using `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from `import.meta.env`
+  - Create `src/lib/supabase.ts` — initialize Supabase client using `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` from `import.meta.env`
   - Generate TypeScript types from Supabase schema: create `src/lib/database.types.ts` with typed table definitions matching the migration schema
     - Use the Supabase CLI `npx supabase gen types typescript` if the migration has been applied, OR manually write the types matching the migration SQL
   - Export typed helper: `const supabase = createClient<Database>(url, key)`
@@ -488,7 +488,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT create actual query functions yet (those come in feature tasks)
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: []
 
   **Parallelization**:
@@ -531,7 +531,7 @@ Max Concurrent: 5 (Wave 2)
   **What to do**:
   - Ensure `vercel.json` from Task 1 is correct (rewrite to `/_shell.html`)
   - Create Vercel project linked to this repo (or deploy with `npx vercel`)
-  - Set environment variables in Vercel dashboard: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (use actual values from Supabase Toad project)
+  - Set environment variables in Vercel dashboard: `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (use actual values from Supabase Toad project)
   - Deploy and verify:
     - Root URL loads the app shell
     - Direct navigation to a sub-route (e.g., `/login`) loads correctly (doesn't 404)
@@ -543,7 +543,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT add preview deployment config (keep simple)
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: [`playwright`]
     - `playwright`: Needed to open deployed URL and verify no console errors, check direct navigation
 
@@ -605,7 +605,7 @@ Max Concurrent: 5 (Wave 2)
   - Keep to just the provider + toggle + theme data
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: [`frontend-ui-ux`]
     - `frontend-ui-ux`: Understands CSS variable theming patterns and shadcn conventions
 
@@ -672,7 +672,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT build actual board/dashboard content (Tasks 10, 11)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`, `frontend-ui-ux`]
     - `react-doctor`: Validate route structure, catch React issues in layout composition
     - `frontend-ui-ux`: Layout patterns, sidebar/header design
@@ -729,7 +729,7 @@ Max Concurrent: 5 (Wave 2)
   - Verify RLS is enabled on all 5 tables
   - Verify the `private` schema exists with `is_project_member` function
   - Test RLS by making an unauthenticated API call:
-    - `curl` the Supabase REST API with just the anon key (no auth header) — should return empty arrays for all tables
+    - `curl` the Supabase REST API with just the publishable key (no auth header) — should return empty arrays for all tables
   - Run the RLS health check query to confirm no tables without RLS:
     ```sql
     SELECT tablename FROM pg_tables t
@@ -743,7 +743,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT create test data yet
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: []
 
   **Parallelization**:
@@ -755,7 +755,7 @@ Max Concurrent: 5 (Wave 2)
   **References**:
   - **File reference**: `supabase/migrations/001_initial_schema.sql` (from Task 2) — the SQL to apply
   - **External**: [Supabase SQL Editor](https://supabase.com/dashboard/project/wdnzqeilwqjuyjeaxjbs/sql/new) — paste migration SQL here
-  - **Pattern note**: Supabase REST API URL for testing: `https://wdnzqeilwqjuyjeaxjbs.supabase.co/rest/v1/{table}?select=*` with header `apikey: {anon_key}`
+  - **Pattern note**: Supabase REST API URL for testing: `https://wdnzqeilwqjuyjeaxjbs.supabase.co/rest/v1/{table}?select=*` with header `apikey: {publishable_key}`
 
   **Acceptance Criteria**:
   - [ ] All 5 tables exist in Supabase
@@ -769,12 +769,12 @@ Max Concurrent: 5 (Wave 2)
     Tool: Bash (curl)
     Preconditions: Migration applied to Supabase Toad project
     Steps:
-      1. curl -s "https://wdnzqeilwqjuyjeaxjbs.supabase.co/rest/v1/projects?select=*" -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY"
+      1. curl -s "https://wdnzqeilwqjuyjeaxjbs.supabase.co/rest/v1/projects?select=*" -H "apikey: $VITE_SUPABASE_KEY" -H "Authorization: Bearer $VITE_SUPABASE_KEY"
       2. Assert response is `[]` (empty array, not error)
-      3. curl -s "https://wdnzqeilwqjuyjeaxjbs.supabase.co/rest/v1/issues?select=*" -H "apikey: $VITE_SUPABASE_ANON_KEY" -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY"
+      3. curl -s "https://wdnzqeilwqjuyjeaxjbs.supabase.co/rest/v1/issues?select=*" -H "apikey: $VITE_SUPABASE_KEY" -H "Authorization: Bearer $VITE_SUPABASE_KEY"
       4. Assert response is `[]`
     Expected Result: Empty arrays for all tables (RLS blocks non-authenticated reads)
-    Failure Indicators: Error responses, or actual data returned, or 401/403 (anon key should be allowed but return 0 rows)
+    Failure Indicators: Error responses, or actual data returned, or 401/403 (publishable key should be allowed but return 0 rows due to RLS)
     Evidence: .sisyphus/evidence/task-7-rls-verification.txt
   ```
 
@@ -818,7 +818,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT create a separate "confirm email" flow (Supabase free tier auto-confirms)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`]
     - `react-doctor`: Validate auth flow, catch React state issues with auth context
 
@@ -897,7 +897,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT add image upload capability
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: []
 
   **Parallelization**:
@@ -960,7 +960,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT fetch board issues/columns on the dashboard (that's for the board view)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`, `frontend-ui-ux`]
     - `react-doctor`: Validate data fetching patterns, React state
     - `frontend-ui-ux`: Dashboard layout, card grid, empty states
@@ -1039,7 +1039,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT implement column drag-to-reorder (keep it simple — reorder via up/down buttons in kebab menu)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`, `frontend-ui-ux`]
     - `react-doctor`: Complex component composition, data fetching patterns
     - `frontend-ui-ux`: Column layout, responsive horizontal scroll, inline editing UX
@@ -1119,7 +1119,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT add roles beyond 'owner' and 'member'
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`]
     - `react-doctor`: Form validation, conditional rendering based on role
 
@@ -1199,7 +1199,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT add user profile editing (just themes)
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: [`frontend-ui-ux`]
     - `frontend-ui-ux`: Gallery layout, visual design of theme preview cards
 
@@ -1277,7 +1277,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT implement inline quick-add (Task 16) — just the full dialog
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`, `frontend-ui-ux`]
     - `react-doctor`: Complex state management, data fetching, list rendering
     - `frontend-ui-ux`: Card design, compact layout, visual priority/date indicators
@@ -1370,7 +1370,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT navigate to a separate page — keep it as overlay on board
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`, `frontend-ui-ux`]
     - `react-doctor`: Complex form state, auto-save pattern, conditional rendering
     - `frontend-ui-ux`: Panel layout, inline editing UX, form design
@@ -1443,7 +1443,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT make FAB visible on desktop (mobile only)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`, `frontend-ui-ux`]
     - `react-doctor`: Form handling, focus management, keyboard events
     - `frontend-ui-ux`: Inline input UX, FAB placement, mobile interaction
@@ -1527,7 +1527,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT implement column drag-to-reorder (only issue cards are draggable)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`]
     - `react-doctor`: Complex hook composition, state management, DOM interaction patterns
 
@@ -1614,7 +1614,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT add date range filter (keep it simple)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`]
     - `react-doctor`: Filter state management, derived data, React rendering optimization
 
@@ -1703,7 +1703,7 @@ Max Concurrent: 5 (Wave 2)
   - Just use responsive CSS (Tailwind breakpoints)
 
   **Recommended Agent Profile**:
-  - **Category**: `deep`
+  - **Category**: `visual-engineering`
   - **Skills**: [`react-doctor`, `frontend-ui-ux`, `playwright`]
     - `react-doctor`: Component rendering issues on different viewports
     - `frontend-ui-ux`: Responsive design patterns, mobile UX
@@ -1772,7 +1772,7 @@ Max Concurrent: 5 (Wave 2)
 - [ ] 20. Final Vercel Deploy + Smoke Test
 
   **What to do**:
-  - Ensure all env vars are set in Vercel dashboard (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
+  - Ensure all env vars are set in Vercel dashboard (VITE_SUPABASE_URL, VITE_SUPABASE_KEY)
   - Trigger production deployment to Vercel
   - Run comprehensive smoke test on the live URL:
     - Auth: signup new user, login, logout, login again
@@ -1793,7 +1793,7 @@ Max Concurrent: 5 (Wave 2)
   - Do NOT configure custom domain
 
   **Recommended Agent Profile**:
-  - **Category**: `quick`
+  - **Category**: `visual-engineering`
   - **Skills**: [`playwright`]
     - `playwright`: Full smoke test on live deployment
 
@@ -1849,25 +1849,21 @@ Max Concurrent: 5 (Wave 2)
   - Files: `vercel.json` (if any fixes needed)
 
 ---
-## Final Verification Wave (MANDATORY — after ALL implementation tasks)
+## Final Verification Wave (after ALL implementation tasks)
 
-> 4 review agents run in PARALLEL. ALL must APPROVE. Rejection → fix → re-run.
+> Stripped down — no Playwright QA. Build check + scope review only.
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
-  Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check evidence files exist in .sisyphus/evidence/. Compare deliverables against plan.
-  Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/N] | VERDICT: APPROVE/REJECT`
+- [ ] F1. **Build + Type Check** — `visual-engineering`
+  Run `npm run build` and `tsc --noEmit`. Fix any build errors or type errors. Verify app starts with `npm run dev`.
+  Output: `Build [PASS/FAIL] | Types [PASS/FAIL]`
 
-- [ ] F2. **Code Quality Review** — `deep`
-  Run `tsc --noEmit` + linter. Review all changed files for: `as any`/`@ts-ignore`, empty catches, console.log in prod, commented-out code, unused imports. Check AI slop: excessive comments, over-abstraction, generic names (data/result/item/temp). Verify no `@dnd-kit/core` legacy imports — only `@dnd-kit/react` and `@dnd-kit/helpers`.
-  Output: `Build [PASS/FAIL] | Lint [PASS/FAIL] | Files [N clean/N issues] | VERDICT`
+- [ ] F2. **Code Quality Scan** — `visual-engineering`
+  Review all files for: `as any`/`@ts-ignore`, empty catches, `console.log` in non-dev code, commented-out code, unused imports. Verify no `@dnd-kit/core` legacy imports — only `@dnd-kit/react` and `@dnd-kit/helpers`. Check no `service_role` key in client code. Check no `raw_user_meta_data` usage.
+  Output: `Files [N clean/N issues] | Forbidden Patterns [CLEAN/N found] | VERDICT`
 
-- [ ] F3. **Real Manual QA** — `deep` (+ `playwright` skill)
-  Start from clean state (no account). Execute EVERY QA scenario from EVERY task — follow exact steps, capture evidence. Test cross-task integration (board → columns → issues → drag → filter). Test edge cases: empty board, no issues, rapid drags. Save to `.sisyphus/evidence/final-qa/`.
-  Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
-
-- [ ] F4. **Scope Fidelity Check** — `deep`
-  For each task: read "What to do", read actual diff. Verify 1:1 — everything in spec was built, nothing beyond spec was built. Check "Must NOT Have" compliance (no comments system, no attachments, no notifications, no activity log, no time tracking, no realtime, no Google OAuth). Flag unaccounted changes.
-  Output: `Tasks [N/N compliant] | Scope Violations [CLEAN/N issues] | VERDICT`
+- [ ] F3. **Scope Fidelity Check** — `visual-engineering`
+  For each task: read "What to do", verify it was built. Check "Must NOT Have" compliance (no comments, attachments, notifications, activity log, time tracking, realtime, Google OAuth). Flag anything built that wasn't in the plan.
+  Output: `Tasks [N/N compliant] | Scope [CLEAN/N violations] | VERDICT`
 
 ---
 
@@ -1897,8 +1893,9 @@ tsc --noEmit         # Expected: no type errors
 ```
 
 ### Final Checklist
-- [ ] App live at Vercel URL
-- [ ] All "Must Have" items verified present
-- [ ] All "Must NOT Have" items verified absent
-- [ ] All 20 tasks have evidence in .sisyphus/evidence/
-- [ ] All 4 final verification agents APPROVE
+- [ ] `npm run build` succeeds
+- [ ] `tsc --noEmit` passes
+- [ ] App runs on `npm run dev`
+- [ ] All "Must Have" items present
+- [ ] All "Must NOT Have" items absent
+- [ ] Vercel deployment works (after user sets env vars)

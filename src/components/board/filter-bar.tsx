@@ -1,0 +1,175 @@
+import { useMemo } from "react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Search, X } from "lucide-react"
+import type { Issue, ProjectMember } from "@/lib/database.types"
+
+export interface FilterState {
+  search: string
+  assigneeEmail: string | null
+  priority: "low" | "medium" | "high" | null
+  label: string | null
+}
+
+interface FilterBarProps {
+  issues: Issue[]
+  members: ProjectMember[]
+  filters: FilterState
+  onFiltersChange: (filters: FilterState) => void
+  totalCount: number
+  filteredCount: number
+}
+
+const PRIORITY_OPTIONS = [
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+] as const
+
+const ALL = "__all__"
+
+export function FilterBar({
+  issues,
+  members,
+  filters,
+  onFiltersChange,
+  totalCount,
+  filteredCount,
+}: FilterBarProps) {
+  const uniqueEmails = useMemo(() => {
+    const emails = new Set<string>()
+    for (const m of members) {
+      if (m.invited_email) emails.add(m.invited_email)
+    }
+    return Array.from(emails).sort()
+  }, [members])
+
+  const uniqueLabels = useMemo(() => {
+    const labels = new Set<string>()
+    for (const issue of issues) {
+      for (const l of issue.labels) {
+        labels.add(l)
+      }
+    }
+    return Array.from(labels).sort()
+  }, [issues])
+
+  const hasActiveFilter =
+    filters.search !== "" ||
+    filters.assigneeEmail !== null ||
+    filters.priority !== null ||
+    filters.label !== null
+
+  const clearAll = () =>
+    onFiltersChange({
+      search: "",
+      assigneeEmail: null,
+      priority: null,
+      label: null,
+    })
+
+  return (
+    <div className="flex items-center gap-2 px-3 sm:px-6 py-2 border-b shrink-0 overflow-x-auto">
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          value={filters.search}
+          onChange={(e) =>
+            onFiltersChange({ ...filters, search: e.target.value })
+          }
+          placeholder="Search issues…"
+          className="h-7 w-36 sm:w-48 pl-7 text-xs"
+        />
+      </div>
+
+      <Select
+        value={filters.assigneeEmail ?? ALL}
+        onValueChange={(v) =>
+          onFiltersChange({
+            ...filters,
+            assigneeEmail: v === ALL ? null : v,
+          })
+        }
+      >
+        <SelectTrigger size="sm" className="text-xs gap-1">
+          <SelectValue placeholder="All assignees" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All assignees</SelectItem>
+          {uniqueEmails.map((email) => (
+            <SelectItem key={email} value={email}>
+              {email}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={filters.priority ?? ALL}
+        onValueChange={(v) =>
+          onFiltersChange({
+            ...filters,
+            priority: v === ALL ? null : (v as FilterState["priority"]),
+          })
+        }
+      >
+        <SelectTrigger size="sm" className="text-xs gap-1">
+          <SelectValue placeholder="All priorities" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All priorities</SelectItem>
+          {PRIORITY_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {uniqueLabels.length > 0 && (
+        <Select
+          value={filters.label ?? ALL}
+          onValueChange={(v) =>
+            onFiltersChange({ ...filters, label: v === ALL ? null : v })
+          }
+        >
+          <SelectTrigger size="sm" className="text-xs gap-1">
+            <SelectValue placeholder="All labels" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All labels</SelectItem>
+            {uniqueLabels.map((label) => (
+              <SelectItem key={label} value={label}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      {hasActiveFilter && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearAll}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+          >
+            <X className="size-3" />
+            Clear
+          </Button>
+          <span className="text-xs text-muted-foreground tabular-nums ml-auto">
+            {filteredCount} of {totalCount}
+          </span>
+        </>
+      )}
+    </div>
+  )
+}
