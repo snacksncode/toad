@@ -64,11 +64,18 @@ function BoardPage() {
   const [items, setItems] = useState<Record<string, string[]>>({})
   const itemsSnapshotRef = useRef<Record<string, string[]>>({})
   const itemsRef = useRef<Record<string, string[]>>({})
+  const columnsSnapshotRef = useRef<ColumnType[]>([])
+  const columnsRef = useRef<ColumnType[]>([])
 
   // Keep itemsRef in sync for use in async handlers
   useEffect(() => {
     itemsRef.current = items
   }, [items])
+
+  // Keep columnsRef in sync for use in async handlers
+  useEffect(() => {
+    columnsRef.current = columns
+  }, [columns])
 
   // Sync items from issues + columns
   useEffect(() => {
@@ -319,18 +326,51 @@ function BoardPage() {
                     snapshot[k] = [...v]
                   }
                   itemsSnapshotRef.current = snapshot
+                  columnsSnapshotRef.current = [...columns]
                 }}
                 onDragOver={(event) => {
-                  setItems((currentItems) => move(currentItems, event))
+                  const source = event.operation.source
+                  if (!source) return
+
+                  if (source.type === "column") {
+                    const target = event.operation.target
+                    if (!target || target.type !== "column" || source.id === target.id) return
+
+                    setColumns((prev) => {
+                      const sourceIdx = prev.findIndex((c) => c.id === String(source.id))
+                      const targetIdx = prev.findIndex((c) => c.id === String(target.id))
+                      if (sourceIdx === -1 || targetIdx === -1 || sourceIdx === targetIdx) return prev
+                      const next = [...prev]
+                      const [moved] = next.splice(sourceIdx, 1)
+                      next.splice(targetIdx, 0, moved)
+                      return next
+                    })
+                  } else {
+                    setItems((currentItems) => move(currentItems, event))
+                  }
                 }}
                 onDragEnd={async (event) => {
                   if (event.canceled) {
+                    setColumns(columnsSnapshotRef.current)
                     setItems(itemsSnapshotRef.current)
                     return
                   }
 
                   const source = event.operation.source
                   if (!source) return
+
+
+                  // Column drag — persist reorder
+                  if (source.type === "column") {
+                    const currentColumns = columnsRef.current
+                    try {
+                      await reorderColumns(boardId, currentColumns.map((c) => c.id))
+                    } catch {
+                      await fetchColumns()
+                      toast.error("Failed to reorder columns")
+                    }
+                    return
+                  }
 
                   const issueId = String(source.id)
                   const currentItems = itemsRef.current
@@ -385,6 +425,7 @@ function BoardPage() {
                     <Column
                       key={col.id}
                       column={col}
+                      index={idx}
                       projectId={boardId}
                       issues={getColumnIssues(col.id)}
                       isFirst={idx === 0}

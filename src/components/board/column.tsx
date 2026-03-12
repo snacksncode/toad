@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react"
-import { MoreVertical, ArrowLeft, ArrowRight, Trash2, Pencil } from "lucide-react"
-import { useDroppable } from "@dnd-kit/react"
+import { MoreVertical, ArrowLeft, ArrowRight, Trash2, Pencil, GripVertical } from "lucide-react"
+import { useSortable } from "@dnd-kit/react/sortable"
 import { CollisionPriority } from "@dnd-kit/abstract"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import type { Column as ColumnType, Issue } from "@/lib/database.types"
 
 interface ColumnProps {
   column: ColumnType
+  index: number
   projectId: string
   issues: Issue[]
   isFirst: boolean
@@ -32,6 +33,7 @@ interface ColumnProps {
 
 export function Column({
   column,
+  index,
   projectId,
   issues,
   isFirst,
@@ -69,20 +71,30 @@ export function Column({
     setIsEditing(false)
   }, [column.name])
 
-  const { ref: droppableRef, isDropTarget } = useDroppable({
+  const { ref, handleRef, isDragSource, isDropTarget } = useSortable({
     id: column.id,
+    index,
     type: "column",
-    accept: ["item"],
+    accept: ["column", "item"],
+    group: "board",
     collisionPriority: CollisionPriority.Low,
   })
 
   return (
-    <div className={cn(
+    <div ref={ref} className={cn(
       "flex flex-col w-72 shrink-0 rounded-xl bg-muted/50 border border-border/50 transition-all",
-      isDropTarget && "ring-2 ring-primary/40 border-primary/30"
+      isDropTarget && "ring-2 ring-primary/40 border-primary/30",
+      isDragSource && "opacity-50 shadow-lg ring-2 ring-primary/30"
     )}>
       {/* Column Header */}
       <div className="flex items-center gap-1.5 px-3 py-2.5 border-b border-border/30">
+        <div
+          ref={handleRef}
+          className="touch-none cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground shrink-0 -ml-1"
+          aria-label="Drag to reorder column"
+        >
+          <GripVertical className="size-3.5" />
+        </div>
         {isEditing ? (
           <Input
             ref={inputRef}
@@ -148,7 +160,7 @@ export function Column({
       </div>
 
       {/* Column Body */}
-      <div ref={droppableRef} className="flex-1 min-h-[200px] px-2 py-2 overflow-y-auto">
+      <div className="flex-1 min-h-[200px] px-2 py-2 overflow-y-auto">
         {issues.length === 0 ? (
           <p className="text-xs text-muted-foreground/60 text-center mt-8 select-none">
             {isDropTarget ? "Drop here" : "No issues"}

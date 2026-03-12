@@ -36,6 +36,7 @@ import type { Column, Issue } from "@/lib/database.types"
 import type { ProjectMember } from "@/lib/database.types"
 import { toast } from "sonner"
 import { Trash2, X, Plus } from "lucide-react"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface IssuePanelProps {
   issue: Issue | null
@@ -303,15 +304,11 @@ export function IssuePanel({
             <Label htmlFor="issue-due-date" className="text-xs text-muted-foreground">
               Due date
             </Label>
-            <Input
-              id="issue-due-date"
-              type="date"
-              value={issue.due_date ?? ""}
-              onChange={(e) =>
-                saveField("due_date", e.target.value || null)
-              }
+            <DatePicker
+              value={issue.due_date ? new Date(issue.due_date + "T00:00:00") : undefined}
+              onChange={(date) => saveField("due_date", date ? date.toISOString().slice(0, 10) : null)}
               className="w-full"
-            />
+              />
           </div>
 
           {/* Labels */}

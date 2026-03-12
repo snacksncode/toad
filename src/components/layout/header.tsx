@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { useAuth } from "@/hooks/use-auth"
-import { LogOut } from "lucide-react"
+import { LogOut, Settings } from "lucide-react"
 
 interface AppHeaderProps {
   showSidebarTrigger?: boolean
@@ -47,6 +47,13 @@ export function AppHeader({ showSidebarTrigger = false }: AppHeaderProps) {
                 {user.email}
               </span>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/settings">
+                <Settings className="size-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut className="size-4" />

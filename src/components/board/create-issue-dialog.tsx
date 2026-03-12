@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
 import { X } from "lucide-react"
 import { createIssue } from "@/lib/queries/issues"
 import { getProjectMembers } from "@/lib/queries/members"
@@ -164,12 +165,10 @@ export function CreateIssueDialog({
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="issue-due">Due date</Label>
-              <Input
-                id="issue-due"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+              <Label>Due date</Label>
+              <DatePicker
+                value={dueDate ? new Date(dueDate + "T00:00:00") : undefined}
+                onChange={(date) => setDueDate(date ? date.toISOString().slice(0, 10) : "")}
               />
             </div>
           </div>
