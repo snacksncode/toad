@@ -3,13 +3,14 @@ import { useSortable } from "@dnd-kit/react/sortable"
 import { useDroppable } from "@dnd-kit/react"
 import { CollisionPriority } from "@dnd-kit/abstract"
 import { skipSelfCollision } from "@/lib/dnd-collision"
-import { Plus, Loader2, Inbox } from "lucide-react"
+import { Plus, Loader2, Inbox, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { createIssue } from "@/lib/queries/issues"
 import type { Issue } from "@/lib/database.types"
 import { toast } from "sonner"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 const BACKLOG_GROUP = "backlog"
 
@@ -53,7 +54,7 @@ function BacklogCard({
         }
       }}
       className={cn(
-        "shrink-0 flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-xs cursor-pointer select-none transition-all hover:shadow-sm hover:border-border max-w-[220px]",
+        "shrink-0 flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs cursor-pointer select-none transition-all hover:shadow-sm hover:border-border max-w-full md:max-w-[220px]",
         isDragSource && "opacity-40"
       )}
       style={{ touchAction: "none" }}
@@ -70,7 +71,7 @@ function BacklogCard({
 
 export function BacklogCardOverlay({ issue }: { issue: Issue }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-xs shadow-sm cursor-grabbing max-w-[220px]">
+    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2.5 text-xs shadow-sm cursor-grabbing max-w-full md:max-w-[220px]">
       <span
         className={`size-1.5 rounded-full shrink-0 ${priorityDot[issue.priority]}`}
       />
@@ -185,6 +186,9 @@ export function Backlog({
   onIssueCreated,
   onIssueClick,
 }: BacklogProps) {
+  const isMobile = useIsMobile()
+  const [expanded, setExpanded] = useState(false)
+
   // Make the backlog strip itself a drop target for when it's empty
   // or when dragging over the strip background (not over a card)
   const { ref: dropRef, isDropTarget } = useDroppable({
@@ -192,6 +196,55 @@ export function Backlog({
     accept: ["item"],
     collisionPriority: CollisionPriority.Low,
   })
+
+  if (isMobile) {
+    return (
+      <div
+        ref={dropRef}
+        className={cn(
+          "border-b shrink-0",
+          isDropTarget && "bg-primary/5"
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-2 w-full px-4 py-2.5 text-muted-foreground"
+        >
+          <Inbox className="size-3.5" />
+          <span className="text-xs font-medium">Backlog</span>
+          <span className="text-[10px] tabular-nums">({issues.length})</span>
+          <ChevronDown
+            className={cn(
+              "size-3.5 ml-auto transition-transform",
+              expanded && "rotate-180"
+            )}
+          />
+        </button>
+
+        {expanded && (
+          <div className="flex flex-col gap-2 px-4 pb-3">
+            {issues.length === 0 && !isDropTarget && (
+              <span className="text-[11px] text-muted-foreground/50 select-none">
+                Add issues here, then drag to columns
+              </span>
+            )}
+
+            {issues.map((issue, index) => (
+              <BacklogCard
+                key={issue.id}
+                issue={issue}
+                index={index}
+                onClick={() => onIssueClick?.(issue)}
+              />
+            ))}
+
+            <BacklogInlineAdd projectId={projectId} onCreated={onIssueCreated} />
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div

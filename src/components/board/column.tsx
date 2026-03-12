@@ -77,7 +77,7 @@ export function Column({
 
   return (
     <div ref={ref} className={cn(
-      "flex flex-col w-80 shrink-0 rounded-xl bg-muted/50 border border-border/50 transition-all",
+      "flex flex-col w-[calc(100vw-2rem)] md:w-80 shrink-0 snap-center rounded-xl bg-muted/50 border border-border/50 transition-all",
       isDropTarget && "ring-2 ring-primary/40 border-primary/30",
       isDragSource && "opacity-50 shadow-lg ring-2 ring-primary/30"
     )}>
@@ -155,7 +155,7 @@ export function Column({
       </div>
 
       {/* Column Body */}
-      <div className="flex-1 min-h-[200px] px-2.5 py-2.5 overflow-y-auto">
+      <div className="flex-1 min-h-[50vh] md:min-h-[200px] px-2.5 py-2.5 overflow-y-auto">
         {issues.length === 0 ? (
           <p className="text-xs text-muted-foreground/60 text-center mt-8 select-none">
             {isDropTarget ? "Drop here" : "No issues"}

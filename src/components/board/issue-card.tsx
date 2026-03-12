@@ -51,7 +51,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       className={cn(
-        "w-full text-left select-none rounded-lg border border-border/60 bg-background px-3.5 py-3 cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "w-full text-left select-none rounded-lg border border-border/60 bg-background px-3.5 py-3 min-h-[44px] cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isDragSource && "opacity-40"
       )}
       style={{ touchAction: "none" }}

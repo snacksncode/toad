@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -8,7 +8,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, X } from "lucide-react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetFooter,
+} from "@/components/ui/sheet"
+import { Search, X, SlidersHorizontal } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type { Issue, ProjectMember } from "@/lib/database.types"
 
 export interface FilterState {
@@ -43,6 +52,9 @@ export function FilterBar({
   totalCount,
   filteredCount,
 }: FilterBarProps) {
+  const isMobile = useIsMobile()
+  const [sheetOpen, setSheetOpen] = useState(false)
+
   const uniqueEmails = useMemo(() => {
     const emails = new Set<string>()
     for (const m of members) {
@@ -67,6 +79,13 @@ export function FilterBar({
     filters.priority !== null ||
     filters.label !== null
 
+  const activeFilterCount = [
+    filters.search !== "",
+    filters.assigneeEmail !== null,
+    filters.priority !== null,
+    filters.label !== null,
+  ].filter(Boolean).length
+
   const clearAll = () =>
     onFiltersChange({
       search: "",
@@ -74,6 +93,133 @@ export function FilterBar({
       priority: null,
       label: null,
     })
+
+  if (isMobile) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b shrink-0">
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+              <SlidersHorizontal className="size-3.5" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-medium leading-none min-w-4 h-4 px-1">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          </SheetTrigger>
+
+          {hasActiveFilter && (
+            <span className="text-xs text-muted-foreground tabular-nums ml-auto">
+              {filteredCount} of {totalCount}
+            </span>
+          )}
+
+          <SheetContent side="bottom" className="rounded-t-xl">
+            <SheetHeader>
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+
+            <div className="flex flex-col gap-3 px-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  value={filters.search}
+                  onChange={(e) =>
+                    onFiltersChange({ ...filters, search: e.target.value })
+                  }
+                  placeholder="Search issues…"
+                  className="h-9 w-full pl-8 text-sm"
+                />
+              </div>
+
+              <Select
+                value={filters.assigneeEmail ?? ALL}
+                onValueChange={(v) =>
+                  onFiltersChange({
+                    ...filters,
+                    assigneeEmail: v === ALL ? null : v,
+                  })
+                }
+              >
+                <SelectTrigger className="h-9 w-full text-sm">
+                  <SelectValue placeholder="All assignees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All assignees</SelectItem>
+                  {uniqueEmails.map((email) => (
+                    <SelectItem key={email} value={email}>
+                      {email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filters.priority ?? ALL}
+                onValueChange={(v) =>
+                  onFiltersChange({
+                    ...filters,
+                    priority: v === ALL ? null : (v as FilterState["priority"]),
+                  })
+                }
+              >
+                <SelectTrigger className="h-9 w-full text-sm">
+                  <SelectValue placeholder="All priorities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All priorities</SelectItem>
+                  {PRIORITY_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {uniqueLabels.length > 0 && (
+                <Select
+                  value={filters.label ?? ALL}
+                  onValueChange={(v) =>
+                    onFiltersChange({ ...filters, label: v === ALL ? null : v })
+                  }
+                >
+                  <SelectTrigger className="h-9 w-full text-sm">
+                    <SelectValue placeholder="All labels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL}>All labels</SelectItem>
+                    {uniqueLabels.map((label) => (
+                      <SelectItem key={label} value={label}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            {hasActiveFilter && (
+              <SheetFooter>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    clearAll()
+                    setSheetOpen(false)
+                  }}
+                  className="w-full gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                  Clear all
+                </Button>
+              </SheetFooter>
+            )}
+          </SheetContent>
+        </Sheet>
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b shrink-0 overflow-x-auto">

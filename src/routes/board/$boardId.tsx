@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { boardKeys } from "@/lib/query-keys"
 import { supabase } from "@/lib/supabase"
 import { AppSidebar } from "@/components/layout/sidebar"
 import { AppHeader } from "@/components/layout/header"
@@ -13,6 +15,7 @@ import { FilterBar } from "@/components/board/filter-bar"
 import type { FilterState } from "@/components/board/filter-bar"
 import { getProjectMembers } from "@/lib/queries/members"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   getProjectColumns,
   createColumn,
@@ -22,7 +25,7 @@ import {
 } from "@/lib/queries/columns"
 import { getProjectIssues, moveIssue, reorderIssues, reorderBacklog } from "@/lib/queries/issues"
 import { updateProject, deleteProject } from "@/lib/queries/projects"
-import type { Column as ColumnType, Issue, ProjectMember } from "@/lib/database.types"
+import type { Column as ColumnType, Issue } from "@/lib/database.types"
 import { toast } from "sonner"
 import { Loader2, Columns3, Settings } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
@@ -47,19 +50,69 @@ function BoardPage() {
   const { boardId } = Route.useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [boardName, setBoardName] = useState<string>("")
-  const [columns, setColumns] = useState<ColumnType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [issues, setIssues] = useState<Issue[]>([])
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
-  const [members, setMembers] = useState<ProjectMember[]>([])
   const [filters, setFilters] = useState<FilterState>({
     search: "",
     assigneeEmail: null,
     priority: null,
     label: null,
   })
+
+  // DnD drag-active flag — disables CSS snap during drag to prevent conflict
+  const [isDragging, setIsDragging] = useState(false)
+
+  // --- React Query: data fetching ---
+
+  const { data: boardName = "" } = useQuery({
+    queryKey: boardKeys.detail(boardId),
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("id", boardId)
+        .single()
+      return data?.name ?? ""
+    },
+  })
+
+  const { data: queryColumns = [] } = useQuery({
+    queryKey: boardKeys.columns(boardId),
+    queryFn: () => getProjectColumns(boardId),
+  })
+
+  const { data: issues = [], isLoading: issuesLoading } = useQuery({
+    queryKey: boardKeys.issues(boardId),
+    queryFn: () => getProjectIssues(boardId),
+  })
+
+  const { data: members = [] } = useQuery({
+    queryKey: boardKeys.members(boardId),
+    queryFn: () => getProjectMembers(boardId),
+  })
+
+  const loading = issuesLoading
+
+  // --- DnD state ---
+
+  // Local columns state for DnD column reorder (syncs from query when not dragging)
+  const [columns, setColumns] = useState<ColumnType[]>([])
+
+  // Sync columns from query when not dragging — with equality check to avoid loops
+  const prevColumnsRef = useRef<ColumnType[]>([])
+  useEffect(() => {
+    if (isDragging) return
+    // Only sync if data actually changed (shallow compare length + ids)
+    const hasChanged =
+      queryColumns.length !== prevColumnsRef.current.length ||
+      queryColumns.some((c, i) => c.id !== prevColumnsRef.current[i]?.id)
+    if (hasChanged) {
+      prevColumnsRef.current = queryColumns
+      setColumns(queryColumns)
+    }
+  }, [queryColumns, isDragging])
+
 
   // DnD state: columnId → issueId[] for visual ordering during drag
   const [items, setItems] = useState<Record<string, string[]>>({})
@@ -99,79 +152,37 @@ function BoardPage() {
     setItems(map)
   }, [issues, columns])
 
-  const fetchBoard = useCallback(async () => {
-    const { data } = await supabase
-      .from("projects")
-      .select("name")
-      .eq("id", boardId)
-      .single()
-    if (data) setBoardName(data.name)
-  }, [boardId])
-
-  const fetchColumns = useCallback(async () => {
-    try {
-      const data = await getProjectColumns(boardId)
-      setColumns(data)
-    } catch {
-      toast.error("Failed to load columns")
-    }
-  }, [boardId])
-
-  const fetchIssues = useCallback(async () => {
-    try {
-      const data = await getProjectIssues(boardId)
-      setIssues(data)
-    } catch {
-      toast.error("Failed to load issues")
-    }
-  }, [boardId])
-
-  const fetchMembers = useCallback(async () => {
-    try {
-      const data = await getProjectMembers(boardId)
-      setMembers(data)
-    } catch {
-      // Non-critical — filter still works without members
-    }
-  }, [boardId])
-
-
-  useEffect(() => {
-    setLoading(true)
-    Promise.all([fetchBoard(), fetchColumns(), fetchIssues(), fetchMembers()]).finally(() =>
-      setLoading(false)
-    )
-  }, [fetchBoard, fetchColumns, fetchIssues, fetchMembers])
+  // --- Mutation handlers ---
 
   const handleCreateColumn = useCallback(
     async (name: string) => {
       try {
         await createColumn(boardId, name)
-        await fetchColumns()
+        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
       } catch {
         toast.error("Failed to create column")
       }
     },
-    [boardId, fetchColumns]
+    [boardId, queryClient]
   )
 
   const handleRenameColumn = useCallback(
     async (columnId: string, name: string) => {
       try {
         await updateColumn(columnId, { name })
-        await fetchColumns()
+        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
       } catch {
         toast.error("Failed to rename column")
       }
     },
-    [fetchColumns]
+    [boardId, queryClient]
   )
 
   const handleDeleteColumn = useCallback(
     async (columnId: string) => {
       try {
         await deleteColumn(columnId)
-        await fetchColumns()
+        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
       } catch (err: unknown) {
         const pgError = err as { code?: string }
         if (pgError.code === "23503") {
@@ -183,7 +194,7 @@ function BoardPage() {
         }
       }
     },
-    [fetchColumns]
+    [boardId, queryClient]
   )
 
   const handleMoveColumn = useCallback(
@@ -207,22 +218,24 @@ function BoardPage() {
           boardId,
           newOrder.map((c) => c.id)
         )
-        await fetchColumns()
+        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
       } catch {
         // Revert on failure
-        await fetchColumns()
+        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
         toast.error("Failed to reorder columns")
       }
     },
-    [columns, boardId, fetchColumns]
+    [columns, boardId, queryClient]
   )
 
   const handleIssueCreated = useCallback(
     async (_issue: Issue) => {
-      await fetchIssues()
+      queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
     },
-    [fetchIssues]
+    [boardId, queryClient]
   )
+
+  // --- Computed values ---
 
   const filteredIssues = useMemo(
     () =>
@@ -287,7 +300,7 @@ function BoardPage() {
         <AppSidebar activeBoardId={boardId} />
         <div className="flex flex-col flex-1 min-w-0">
           <AppHeader showSidebarTrigger />
-          <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3.5 sm:py-4 border-b shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b shrink-0">
             <Columns3 className="size-5 text-muted-foreground" />
             <h1 className="text-lg sm:text-xl font-semibold truncate">
               {boardName || "Loading…"}
@@ -338,6 +351,8 @@ function BoardPage() {
                   }),
                 ]}
                 onDragStart={(event) => {
+                  setIsDragging(true)
+
                   // Snapshot for cancel revert
                   const snapshot: Record<string, string[]> = {}
                   for (const [k, v] of Object.entries(items)) {
@@ -383,6 +398,7 @@ function BoardPage() {
                 onDragEnd={async (event) => {
                   // Always clear overlay
                   setActiveIssueId(null)
+                  setIsDragging(false)
 
                   if (event.canceled) {
                     setColumns(columnsSnapshotRef.current)
@@ -404,7 +420,7 @@ function BoardPage() {
                     try {
                       await reorderColumns(boardId, currentColumns.map((c) => c.id))
                     } catch {
-                      await fetchColumns()
+                      queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
                       toast.error("Failed to reorder columns")
                     }
                     return
@@ -469,7 +485,7 @@ function BoardPage() {
                       }
                     }
                     // Refetch to sync with DB
-                    await fetchIssues()
+                    queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
                   } catch {
                     setItems(itemsSnapshotRef.current)
                     toast.error("Failed to move issue")
@@ -482,8 +498,8 @@ function BoardPage() {
                   onIssueCreated={handleIssueCreated}
                   onIssueClick={(issue) => setSelectedIssue(issue)}
                 />
-                <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                  <div className="flex gap-4 sm:gap-5 p-4 sm:p-6 h-full items-start">
+                <div className={cn("flex-1 overflow-x-auto overflow-y-hidden", !isDragging && "snap-x snap-mandatory md:snap-none")}>
+                  <div className="flex gap-3 md:gap-5 px-4 md:px-6 py-3 md:py-6 h-full items-start">
                     {columns.map((col, idx) => (
                       <Column
                         key={col.id}
@@ -520,7 +536,7 @@ function BoardPage() {
             currentUserId={user.id}
             onRename={async (newName) => {
               await updateProject(boardId, newName)
-              setBoardName(newName)
+              queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) })
               setSettingsOpen(false)
             }}
             onDelete={async () => {
@@ -537,12 +553,11 @@ function BoardPage() {
           columns={columns}
           open={selectedIssue !== null}
           onOpenChange={(open) => { if (!open) setSelectedIssue(null) }}
-          onIssueUpdated={(updated) => {
-            setIssues(prev => prev.map(i => i.id === updated.id ? updated : i))
-            setSelectedIssue(updated)
+          onIssueUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
           }}
-          onIssueDeleted={(id) => {
-            setIssues(prev => prev.filter(i => i.id !== id))
+          onIssueDeleted={() => {
+            queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
             setSelectedIssue(null)
           }}
         />
