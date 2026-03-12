@@ -14,16 +14,22 @@ export interface Database {
           id: string
           email: string
           created_at: string
+          theme: string
+          color_mode: string
         }
         Insert: {
           id: string
           email: string
           created_at?: string
+          theme?: string
+          color_mode?: string
         }
         Update: {
           id?: string
           email?: string
           created_at?: string
+          theme?: string
+          color_mode?: string
         }
         Relationships: []
       }

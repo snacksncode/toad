@@ -163,7 +163,7 @@ function SettingsPage() {
           <p className="text-sm text-muted-foreground mb-4">
             Pick a color palette for your workspace.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {themes.map((t) => (
               <ThemeCard
                 key={t.id}

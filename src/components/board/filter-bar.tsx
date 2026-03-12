@@ -76,7 +76,7 @@ export function FilterBar({
     })
 
   return (
-    <div className="flex items-center gap-2 px-3 sm:px-6 py-2 border-b shrink-0 overflow-x-auto">
+    <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b shrink-0 overflow-x-auto">
       <div className="relative">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
         <Input
@@ -85,7 +85,7 @@ export function FilterBar({
             onFiltersChange({ ...filters, search: e.target.value })
           }
           placeholder="Search issues…"
-          className="h-7 w-36 sm:w-48 pl-7 text-xs"
+          className="h-8 w-40 sm:w-52 pl-7 text-xs"
         />
       </div>
 

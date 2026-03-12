@@ -287,9 +287,9 @@ function BoardPage() {
         <AppSidebar activeBoardId={boardId} />
         <div className="flex flex-col flex-1 min-w-0">
           <AppHeader showSidebarTrigger />
-          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-6 py-3 sm:py-4 border-b shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3.5 sm:py-4 border-b shrink-0">
             <Columns3 className="size-5 text-muted-foreground" />
-            <h1 className="text-base sm:text-lg font-semibold truncate">
+            <h1 className="text-lg sm:text-xl font-semibold truncate">
               {boardName || "Loading…"}
             </h1>
             <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">
@@ -483,7 +483,7 @@ function BoardPage() {
                   onIssueClick={(issue) => setSelectedIssue(issue)}
                 />
                 <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                  <div className="flex gap-3 sm:gap-4 p-3 sm:p-6 h-full items-start">
+                  <div className="flex gap-4 sm:gap-5 p-4 sm:p-6 h-full items-start">
                     {columns.map((col, idx) => (
                       <Column
                         key={col.id}

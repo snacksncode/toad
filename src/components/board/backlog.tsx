@@ -53,7 +53,7 @@ function BacklogCard({
         }
       }}
       className={cn(
-        "shrink-0 flex items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs cursor-pointer select-none transition-all hover:shadow-sm hover:border-border max-w-[200px]",
+        "shrink-0 flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-xs cursor-pointer select-none transition-all hover:shadow-sm hover:border-border max-w-[220px]",
         isDragSource && "opacity-40"
       )}
       style={{ touchAction: "none" }}
@@ -70,7 +70,7 @@ function BacklogCard({
 
 export function BacklogCardOverlay({ issue }: { issue: Issue }) {
   return (
-    <div className="flex items-center gap-1.5 rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs shadow-sm cursor-grabbing max-w-[200px]">
+    <div className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2 text-xs shadow-sm cursor-grabbing max-w-[220px]">
       <span
         className={`size-1.5 rounded-full shrink-0 ${priorityDot[issue.priority]}`}
       />
@@ -197,11 +197,11 @@ export function Backlog({
     <div
       ref={dropRef}
       className={cn(
-        "flex items-center gap-2 px-3 sm:px-6 py-2 border-b overflow-x-auto overflow-y-hidden scrollbar-thin shrink-0",
+        "flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b overflow-x-auto overflow-y-hidden scrollbar-thin shrink-0",
         isDropTarget && "bg-primary/5"
       )}
     >
-      <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground">
+      <div className="flex items-center gap-2 shrink-0 text-muted-foreground">
         <Inbox className="size-3.5" />
         <span className="text-xs font-medium">Backlog</span>
         <span className="text-[10px] tabular-nums">({issues.length})</span>

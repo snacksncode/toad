@@ -51,7 +51,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
       onClick={onClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       className={cn(
-        "w-full text-left select-none rounded-lg border border-border/60 bg-background px-3 py-2.5 min-h-11 cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "w-full text-left select-none rounded-lg border border-border/60 bg-background px-3.5 py-3 cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isDragSource && "opacity-40"
       )}
       style={{ touchAction: "none" }}
@@ -62,7 +62,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
           {issue.title}
         </span>
         <span
-          className={`size-2 rounded-full shrink-0 mt-1.5 ${priorityColors[issue.priority]}`}
+          className={`size-2.5 rounded-full shrink-0 mt-1 ${priorityColors[issue.priority]}`}
           title={`${issue.priority} priority`}
         />
       </div>
@@ -73,7 +73,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
           {issue.labels.slice(0, 3).map((label) => (
             <span
               key={label}
-              className="inline-block text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40 truncate max-w-[100px]"
+              className="inline-block text-[11px] leading-none px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40 truncate max-w-[100px]"
             >
               {label}
             </span>
@@ -116,14 +116,14 @@ export function IssueCardOverlay({ issue }: { issue: Issue }) {
 
   return (
     <div
-      className="w-full text-left select-none rounded-lg border border-border/60 bg-background px-3 py-2.5 min-h-11 shadow-sm cursor-grabbing"
+      className="w-full text-left select-none rounded-lg border border-border/60 bg-background px-3.5 py-3 shadow-sm cursor-grabbing"
     >
       <div className="flex items-start gap-2">
         <span className="text-sm font-medium leading-snug line-clamp-2 flex-1 min-w-0">
           {issue.title}
         </span>
         <span
-          className={`size-2 rounded-full shrink-0 mt-1.5 ${priorityColors[issue.priority]}`}
+          className={`size-2.5 rounded-full shrink-0 mt-1 ${priorityColors[issue.priority]}`}
           title={`${issue.priority} priority`}
         />
       </div>
@@ -133,7 +133,7 @@ export function IssueCardOverlay({ issue }: { issue: Issue }) {
           {issue.labels.slice(0, 3).map((label) => (
             <span
               key={label}
-              className="inline-block text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40 truncate max-w-[100px]"
+              className="inline-block text-[11px] leading-none px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40 truncate max-w-[100px]"
             >
               {label}
             </span>
