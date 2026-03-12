@@ -47,7 +47,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-lg border border-border/60 bg-background px-3 py-2.5 min-h-11 cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "w-full text-left select-none rounded-lg border border-border/60 bg-background px-3 py-2.5 min-h-11 cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isDragSource && "opacity-50 shadow-lg ring-2 ring-primary/30 scale-[1.02]"
       )}
       style={{ touchAction: "none" }}

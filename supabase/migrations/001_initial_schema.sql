@@ -170,6 +170,12 @@ CREATE POLICY "projects_select_member" ON public.projects
   FOR SELECT TO authenticated
   USING (private.is_project_member(id));
 
+-- Owner can always see their own project (needed for INSERT...RETURNING
+-- before project_members row is created)
+CREATE POLICY "projects_select_owner" ON public.projects
+  FOR SELECT TO authenticated
+  USING (owner_id = (SELECT auth.uid()));
+
 CREATE POLICY "projects_insert_authenticated" ON public.projects
   FOR INSERT TO authenticated
   WITH CHECK (owner_id = (SELECT auth.uid()));
