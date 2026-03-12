@@ -1,5 +1,6 @@
 import { useSortable } from "@dnd-kit/react/sortable"
 import { CollisionPriority } from "@dnd-kit/abstract"
+import { skipSelfCollision } from "@/lib/dnd-collision"
 import { Avatar } from "@/components/avatar"
 import { cn } from "@/lib/utils"
 import type { Issue } from "@/lib/database.types"
@@ -39,6 +40,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
     accept: ["item"],
     group: columnId,
     collisionPriority: CollisionPriority.Normal,
+    collisionDetector: skipSelfCollision,
   })
 
   return (
@@ -50,7 +52,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       className={cn(
         "w-full text-left select-none rounded-lg border border-border/60 bg-background px-3 py-2.5 min-h-11 cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        isDragSource && "opacity-50 shadow-lg ring-2 ring-primary/30 scale-[1.02]"
+        isDragSource && "opacity-40"
       )}
       style={{ touchAction: "none" }}
     >
@@ -85,6 +87,65 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
       )}
 
       {/* Footer: due date + assignee */}
+      {(issue.due_date || issue.assignee_email) && (
+        <div className="flex items-center justify-between gap-2 mt-2">
+          {issue.due_date ? (
+            <span
+              className={`text-xs tabular-nums ${overdue ? "text-red-500 font-medium" : "text-muted-foreground"}`}
+            >
+              {formatDueDate(issue.due_date)}
+            </span>
+          ) : (
+            <span />
+          )}
+          {issue.assignee_email && (
+            <Avatar email={issue.assignee_email} size="sm" />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Presentational card clone rendered inside <DragOverlay>.
+ * No useSortable — just the visual representation.
+ */
+export function IssueCardOverlay({ issue }: { issue: Issue }) {
+  const overdue = issue.due_date ? isOverdue(issue.due_date) : false
+
+  return (
+    <div
+      className="w-full text-left select-none rounded-lg border border-border/60 bg-background px-3 py-2.5 min-h-11 shadow-sm cursor-grabbing"
+    >
+      <div className="flex items-start gap-2">
+        <span className="text-sm font-medium leading-snug line-clamp-2 flex-1 min-w-0">
+          {issue.title}
+        </span>
+        <span
+          className={`size-2 rounded-full shrink-0 mt-1.5 ${priorityColors[issue.priority]}`}
+          title={`${issue.priority} priority`}
+        />
+      </div>
+
+      {issue.labels.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {issue.labels.slice(0, 3).map((label) => (
+            <span
+              key={label}
+              className="inline-block text-[10px] leading-none px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40 truncate max-w-[100px]"
+            >
+              {label}
+            </span>
+          ))}
+          {issue.labels.length > 3 && (
+            <span className="text-[10px] text-muted-foreground">
+              +{issue.labels.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
       {(issue.due_date || issue.assignee_email) && (
         <div className="flex items-center justify-between gap-2 mt-2">
           {issue.due_date ? (

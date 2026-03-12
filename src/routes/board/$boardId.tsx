@@ -26,9 +26,10 @@ import type { Column as ColumnType, Issue, ProjectMember } from "@/lib/database.
 import { toast } from "sonner"
 import { Loader2, Columns3, Settings } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { DragDropProvider } from "@dnd-kit/react"
+import { DragDropProvider, DragOverlay } from "@dnd-kit/react"
 import { PointerSensor, PointerActivationConstraints } from "@dnd-kit/dom"
 import { move } from "@dnd-kit/helpers"
+import { IssueCardOverlay } from "@/components/board/issue-card"
 
 export const Route = createFileRoute("/board/$boardId")({
   beforeLoad: async () => {
@@ -66,6 +67,9 @@ function BoardPage() {
   const itemsRef = useRef<Record<string, string[]>>({})
   const columnsSnapshotRef = useRef<ColumnType[]>([])
   const columnsRef = useRef<ColumnType[]>([])
+
+  // Track active dragged issue for DragOverlay
+  const [activeIssueId, setActiveIssueId] = useState<string | null>(null)
 
   // Keep itemsRef in sync for use in async handlers
   useEffect(() => {
@@ -319,7 +323,7 @@ function BoardPage() {
                     },
                   }),
                 ]}
-                onDragStart={() => {
+                onDragStart={(event) => {
                   // Snapshot for cancel revert
                   const snapshot: Record<string, string[]> = {}
                   for (const [k, v] of Object.entries(items)) {
@@ -327,6 +331,12 @@ function BoardPage() {
                   }
                   itemsSnapshotRef.current = snapshot
                   columnsSnapshotRef.current = [...columns]
+
+                  // Track dragged issue for DragOverlay
+                  const source = event.operation.source
+                  if (source?.type === "item") {
+                    setActiveIssueId(String(source.id))
+                  }
                 }}
                 onDragOver={(event) => {
                   const source = event.operation.source
@@ -346,7 +356,10 @@ function BoardPage() {
                       return next
                     })
                   } else {
-                    setItems((currentItems) => move(currentItems, event))
+                    // Track position in ref only — don't trigger React re-render during drag.
+                    // Re-rendering moves the card between Column components (unmount/remount),
+                    // which causes the Feedback plugin to recalculate and the overlay to jump.
+                    itemsRef.current = move(itemsRef.current, event)
                   }
 
                   // Prevent OptimisticSortingPlugin from also manipulating the DOM,
@@ -354,11 +367,18 @@ function BoardPage() {
                   if ("preventDefault" in event) event.preventDefault()
                 }}
                 onDragEnd={async (event) => {
+                  // Always clear overlay
+                  setActiveIssueId(null)
+
                   if (event.canceled) {
                     setColumns(columnsSnapshotRef.current)
                     setItems(itemsSnapshotRef.current)
                     return
                   }
+
+                  // Apply tracked position to state immediately so the card
+                  // appears in its new column before the async persist completes
+                  setItems({ ...itemsRef.current })
 
                   const source = event.operation.source
                   if (!source) return
@@ -444,6 +464,11 @@ function BoardPage() {
                   ))}
                   <AddColumnButton onAdd={handleCreateColumn} />
                 </div>
+                <DragOverlay>
+                  {activeIssueId && issueMap.get(activeIssueId) ? (
+                    <IssueCardOverlay issue={issueMap.get(activeIssueId)!} />
+                  ) : null}
+                </DragOverlay>
               </DragDropProvider>
             )}
           </main>
