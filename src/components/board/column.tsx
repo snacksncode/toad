@@ -12,14 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { IssueCard } from "@/components/board/issue-card"
-import { InlineAdd } from "@/components/board/inline-add"
 import { cn } from "@/lib/utils"
 import type { Column as ColumnType, Issue } from "@/lib/database.types"
 
 interface ColumnProps {
   column: ColumnType
   index: number
-  projectId: string
   issues: Issue[]
   isFirst: boolean
   isLast: boolean
@@ -28,13 +26,11 @@ interface ColumnProps {
   onMoveLeft: () => void
   onMoveRight: () => void
   onIssueClick?: (issue: Issue) => void
-  onIssueCreated?: (issue: Issue) => void
 }
 
 export function Column({
   column,
   index,
-  projectId,
   issues,
   isFirst,
   isLast,
@@ -43,7 +39,6 @@ export function Column({
   onMoveLeft,
   onMoveRight,
   onIssueClick,
-  onIssueCreated,
 }: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(column.name)
@@ -178,15 +173,6 @@ export function Column({
             ))}
           </div>
         )}
-      </div>
-
-      {/* Column Footer */}
-      <div className="px-2 py-2 border-t border-border/30">
-        <InlineAdd
-          columnId={column.id}
-          projectId={projectId}
-          onCreated={(issue) => onIssueCreated?.(issue)}
-        />
       </div>
     </div>
   )

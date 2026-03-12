@@ -114,8 +114,10 @@ export function IssuePanel({
   }, [issue, description, saveField])
 
   const handleColumnChange = useCallback(
-    async (newColumnId: string) => {
-      if (!issue || newColumnId === issue.column_id) return
+    async (newValue: string) => {
+      if (!issue) return
+      const newColumnId = newValue === "backlog" ? null : newValue
+      if (newColumnId === issue.column_id) return
       try {
         const updated = await moveIssue(issue.id, newColumnId, 999)
         onIssueUpdated(updated)
@@ -252,13 +254,14 @@ export function IssuePanel({
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Column</Label>
             <Select
-              value={issue.column_id}
+              value={issue.column_id ?? "backlog"}
               onValueChange={handleColumnChange}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="backlog">Backlog</SelectItem>
                 {columns.map((col) => (
                   <SelectItem key={col.id} value={col.id}>
                     {col.name}

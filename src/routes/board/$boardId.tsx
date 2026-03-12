@@ -8,7 +8,7 @@ import { Column } from "@/components/board/column"
 import { AddColumnButton } from "@/components/board/add-column-button"
 import { BoardSettings } from "@/components/board/board-settings"
 import { IssuePanel } from "@/components/board/issue-panel"
-import { QuickAddFab } from "@/components/board/quick-add-fab"
+import { Backlog, BacklogCardOverlay } from "@/components/board/backlog"
 import { FilterBar } from "@/components/board/filter-bar"
 import type { FilterState } from "@/components/board/filter-bar"
 import { getProjectMembers } from "@/lib/queries/members"
@@ -20,7 +20,7 @@ import {
   reorderColumns,
   deleteColumn,
 } from "@/lib/queries/columns"
-import { getProjectIssues, moveIssue, reorderIssues } from "@/lib/queries/issues"
+import { getProjectIssues, moveIssue, reorderIssues, reorderBacklog } from "@/lib/queries/issues"
 import { updateProject, deleteProject } from "@/lib/queries/projects"
 import type { Column as ColumnType, Issue, ProjectMember } from "@/lib/database.types"
 import { toast } from "sonner"
@@ -81,9 +81,15 @@ function BoardPage() {
     columnsRef.current = columns
   }, [columns])
 
-  // Sync items from issues + columns
+  // Sync items from issues + columns (including backlog)
   useEffect(() => {
     const map: Record<string, string[]> = {}
+    // Backlog: issues with no column
+    map.backlog = issues
+      .filter((i) => i.column_id === null)
+      .sort((a, b) => a.position - b.position)
+      .map((i) => i.id)
+    // Columns
     for (const col of columns) {
       map[col.id] = issues
         .filter((i) => i.column_id === col.id)
@@ -267,6 +273,14 @@ function BoardPage() {
     [items, filteredIssueIds, issueMap]
   )
 
+  // Get ordered backlog issues (driven by items state)
+  const backlogIssues = useMemo((): Issue[] => {
+    const ids = items.backlog ?? []
+    return ids
+      .map((id) => issueMap.get(id))
+      .filter((issue): issue is Issue => issue !== undefined)
+  }, [items, issueMap])
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -301,7 +315,7 @@ function BoardPage() {
               filteredCount={filteredIssues.length}
             />
           )}
-          <main className="flex-1 overflow-x-auto overflow-y-hidden">
+          <main className="flex-1 overflow-hidden flex flex-col">
             {loading ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -399,42 +413,60 @@ function BoardPage() {
                   const issueId = String(source.id)
                   const currentItems = itemsRef.current
 
-                  // Find which column the issue landed in
-                  let newColumnId: string | null = null
+                  // Find which group (backlog or column) the issue landed in
+                  let newGroupKey: string | null = null
                   let newPosition = 0
-                  for (const [colId, ids] of Object.entries(currentItems)) {
+                  for (const [key, ids] of Object.entries(currentItems)) {
                     const idx = ids.indexOf(issueId)
                     if (idx !== -1) {
-                      newColumnId = colId
+                      newGroupKey = key
                       newPosition = idx
                       break
                     }
                   }
 
-                  if (!newColumnId) return
+                  if (!newGroupKey) return
 
                   const issue = issueMap.get(issueId)
                   if (!issue) return
 
-                  const originalColumnId = issue.column_id
+                  // Original group: column_id or "backlog"
+                  const originalGroupKey = issue.column_id ?? "backlog"
+                  // New column_id: null if backlog, otherwise the column UUID
+                  const newColumnId = newGroupKey === "backlog" ? null : newGroupKey
 
                   try {
-                    if (originalColumnId !== newColumnId) {
-                      // Cross-column move
+                    if (originalGroupKey !== newGroupKey) {
+                      // Cross-group move (column↔column, column↔backlog, backlog↔column)
                       await moveIssue(issueId, newColumnId, newPosition)
-                      // Reorder both columns
-                      const targetIds = currentItems[newColumnId] ?? []
+
+                      // Reorder target group
+                      const targetIds = currentItems[newGroupKey] ?? []
                       if (targetIds.length > 0) {
-                        await reorderIssues(newColumnId, targetIds)
+                        if (newGroupKey === "backlog") {
+                          await reorderBacklog(boardId, targetIds)
+                        } else {
+                          await reorderIssues(newGroupKey, targetIds)
+                        }
                       }
-                      const origIds = currentItems[originalColumnId] ?? []
+
+                      // Reorder source group
+                      const origIds = currentItems[originalGroupKey] ?? []
                       if (origIds.length > 0) {
-                        await reorderIssues(originalColumnId, origIds)
+                        if (originalGroupKey === "backlog") {
+                          await reorderBacklog(boardId, origIds)
+                        } else {
+                          await reorderIssues(originalGroupKey, origIds)
+                        }
                       }
                     } else {
-                      // Same column reorder
-                      const colIds = currentItems[newColumnId] ?? []
-                      await reorderIssues(newColumnId, colIds)
+                      // Same-group reorder
+                      const ids = currentItems[newGroupKey] ?? []
+                      if (newGroupKey === "backlog") {
+                        await reorderBacklog(boardId, ids)
+                      } else {
+                        await reorderIssues(newGroupKey, ids)
+                      }
                     }
                     // Refetch to sync with DB
                     await fetchIssues()
@@ -444,29 +476,37 @@ function BoardPage() {
                   }
                 }}
               >
-                <div className="flex gap-3 sm:gap-4 p-3 sm:p-6 h-full items-start">
-                  {columns.map((col, idx) => (
-                    <Column
-                      key={col.id}
-                      column={col}
-                      index={idx}
-                      projectId={boardId}
-                      issues={getColumnIssues(col.id)}
-                      isFirst={idx === 0}
-                      isLast={idx === columns.length - 1}
-                      onRename={(name) => handleRenameColumn(col.id, name)}
-                      onDelete={() => handleDeleteColumn(col.id)}
-                      onMoveLeft={() => handleMoveColumn(col.id, "left")}
-                      onMoveRight={() => handleMoveColumn(col.id, "right")}
-                      onIssueCreated={handleIssueCreated}
-                      onIssueClick={(issue) => setSelectedIssue(issue)}
-                    />
-                  ))}
-                  <AddColumnButton onAdd={handleCreateColumn} />
+                <Backlog
+                  issues={backlogIssues}
+                  projectId={boardId}
+                  onIssueCreated={handleIssueCreated}
+                  onIssueClick={(issue) => setSelectedIssue(issue)}
+                />
+                <div className="flex-1 overflow-x-auto overflow-y-hidden">
+                  <div className="flex gap-3 sm:gap-4 p-3 sm:p-6 h-full items-start">
+                    {columns.map((col, idx) => (
+                      <Column
+                        key={col.id}
+                        column={col}
+                        index={idx}
+                        issues={getColumnIssues(col.id)}
+                        isFirst={idx === 0}
+                        isLast={idx === columns.length - 1}
+                        onRename={(name) => handleRenameColumn(col.id, name)}
+                        onDelete={() => handleDeleteColumn(col.id)}
+                        onMoveLeft={() => handleMoveColumn(col.id, "left")}
+                        onMoveRight={() => handleMoveColumn(col.id, "right")}
+                        onIssueClick={(issue) => setSelectedIssue(issue)}
+                      />
+                    ))}
+                    <AddColumnButton onAdd={handleCreateColumn} />
+                  </div>
                 </div>
                 <DragOverlay>
                   {activeIssueId && issueMap.get(activeIssueId) ? (
-                    <IssueCardOverlay issue={issueMap.get(activeIssueId)!} />
+                    issueMap.get(activeIssueId)!.column_id === null
+                      ? <BacklogCardOverlay issue={issueMap.get(activeIssueId)!} />
+                      : <IssueCardOverlay issue={issueMap.get(activeIssueId)!} />
                   ) : null}
                 </DragOverlay>
               </DragDropProvider>
@@ -505,11 +545,6 @@ function BoardPage() {
             setIssues(prev => prev.filter(i => i.id !== id))
             setSelectedIssue(null)
           }}
-        />
-        <QuickAddFab
-          columns={columns}
-          projectId={boardId}
-          onCreated={handleIssueCreated}
         />
       </div>
     </SidebarProvider>

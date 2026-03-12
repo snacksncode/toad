@@ -103,7 +103,7 @@ export interface Database {
         Row: {
           id: string
           project_id: string
-          column_id: string
+          column_id: string | null
           title: string
           description: string
           priority: 'low' | 'medium' | 'high'
@@ -117,7 +117,7 @@ export interface Database {
         Insert: {
           id?: string
           project_id: string
-          column_id: string
+          column_id?: string | null
           title: string
           description?: string
           priority?: 'low' | 'medium' | 'high'
@@ -131,7 +131,7 @@ export interface Database {
         Update: {
           id?: string
           project_id?: string
-          column_id?: string
+          column_id?: string | null
           title?: string
           description?: string
           priority?: 'low' | 'medium' | 'high'

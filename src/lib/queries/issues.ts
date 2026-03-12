@@ -29,11 +29,18 @@ export async function getProjectIssues(projectId: string): Promise<Issue[]> {
 export async function createIssue(
   input: Omit<IssueInsert, "position">
 ): Promise<Issue> {
-  // Get next position: COALESCE(MAX(position), -1) + 1
-  const { data: existing } = await supabase
+  // Get next position within column or backlog
+  let query = supabase
     .from("issues")
     .select("position")
-    .eq("column_id", input.column_id)
+
+  if (input.column_id) {
+    query = query.eq("column_id", input.column_id)
+  } else {
+    query = query.is("column_id", null).eq("project_id", input.project_id)
+  }
+
+  const { data: existing } = await query
     .order("position", { ascending: false })
     .limit(1)
 
@@ -73,7 +80,7 @@ export async function deleteIssue(issueId: string): Promise<void> {
 
 export async function moveIssue(
   issueId: string,
-  newColumnId: string,
+  newColumnId: string | null,
   newPosition: number
 ): Promise<Issue> {
   const { data, error } = await supabase
@@ -97,6 +104,24 @@ export async function reorderIssues(
       .update({ position: index })
       .eq("id", id)
       .eq("column_id", columnId)
+  )
+
+  const results = await Promise.all(promises)
+  const failed = results.find((r) => r.error)
+  if (failed?.error) throw failed.error
+}
+
+export async function reorderBacklog(
+  projectId: string,
+  orderedIds: string[]
+): Promise<void> {
+  const promises = orderedIds.map((id, index) =>
+    supabase
+      .from("issues")
+      .update({ position: index })
+      .eq("id", id)
+      .is("column_id", null)
+      .eq("project_id", projectId)
   )
 
   const results = await Promise.all(promises)
