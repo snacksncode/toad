@@ -42,10 +42,12 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
   })
 
   return (
-    <button
+    <div
       ref={ref}
-      type="button"
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
       className={cn(
         "w-full text-left select-none rounded-lg border border-border/60 bg-background px-3 py-2.5 min-h-11 cursor-pointer transition-all hover:shadow-sm hover:border-border active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isDragSource && "opacity-50 shadow-lg ring-2 ring-primary/30 scale-[1.02]"
@@ -99,6 +101,6 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
           )}
         </div>
       )}
-    </button>
+    </div>
   )
 }
