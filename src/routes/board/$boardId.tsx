@@ -348,6 +348,10 @@ function BoardPage() {
                   } else {
                     setItems((currentItems) => move(currentItems, event))
                   }
+
+                  // Prevent OptimisticSortingPlugin from also manipulating the DOM,
+                  // which conflicts with React's state-driven rendering
+                  if ("preventDefault" in event) event.preventDefault()
                 }}
                 onDragEnd={async (event) => {
                   if (event.canceled) {
