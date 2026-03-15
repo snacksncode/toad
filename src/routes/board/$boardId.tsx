@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useState, useMemo } from "react"
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { supabase } from "@/lib/supabase"
@@ -11,23 +11,16 @@ import { Column } from "@/components/board/column"
 import { AddColumnButton } from "@/components/board/add-column-button"
 import { BoardSettings } from "@/components/board/board-settings"
 import { IssuePanel } from "@/components/board/issue-panel"
-
 import { FilterBar } from "@/components/board/filter-bar"
 import type { FilterState } from "@/components/board/filter-bar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import {
-  createColumn,
-  updateColumn,
-  reorderColumns,
-  deleteColumn,
-} from "@/lib/queries/columns"
-import { moveIssue, reorderIssues } from "@/lib/queries/issues"
 import { updateProject, deleteProject } from "@/lib/queries/projects"
-import type { Column as ColumnType, Issue } from "@/lib/database.types"
-import { toast } from "sonner"
+import type { Issue } from "@/lib/database.types"
 import { Columns3, Settings } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
+import { useBoardDnd } from "@/hooks/use-board-dnd"
+import { useBoardMutations } from "@/hooks/use-board-mutations"
 import { DragDropProvider, DragOverlay } from "@dnd-kit/react"
 import {
   PointerSensor,
@@ -38,7 +31,6 @@ import {
   type DragOverEvent,
   type DragEndEvent,
 } from "@dnd-kit/dom"
-import { move } from "@dnd-kit/helpers"
 import { IssueCardOverlay } from "@/components/board/issue-card"
 
 export const Route = createFileRoute("/board/$boardId")({
@@ -74,135 +66,10 @@ function BoardPage() {
     label: null,
   })
 
-  // DnD drag-active flag — disables CSS snap during drag to prevent conflict
-  const [isDragging, setIsDragging] = useState(false)
-
-  // --- React Query: data fetching (loader ensures cache is warm) ---
   const { data: boardName } = useSuspenseQuery(boardQueries.name(boardId))
   const { data: columns } = useSuspenseQuery(boardQueries.columns(boardId))
   const { data: issues } = useSuspenseQuery(boardQueries.issues(boardId))
   const { data: members } = useSuspenseQuery(boardQueries.members(boardId))
-
-  // Local columns state for DnD column reorder
-  const [localColumns, setLocalColumns] = useState<ColumnType[]>(columns)
-
-  // DnD state: columnId → issueId[] for visual ordering during drag
-  const [items, setItems] = useState<Record<string, string[]>>({})
-  const itemsRef = useRef<Record<string, string[]>>({})
-  const itemsSnapshotRef = useRef<Record<string, string[]>>({})
-  const columnsSnapshotRef = useRef<ColumnType[]>([])
-  // Sync server columns into local DnD state.
-  // Skips during drag so optimistic reorder isn't overwritten mid-gesture.
-  useEffect(() => {
-    if (isDragging) return
-    setLocalColumns(columns)
-  }, [columns, isDragging])
-
-  // Build columnId→issueId[] map for DnD visual ordering.
-  // Skips during drag so the dragged layout isn't reset by a server refresh.
-  useEffect(() => {
-    if (isDragging) return
-    const map: Record<string, string[]> = {}
-    for (const col of localColumns) {
-      map[col.id] = issues
-        .filter((i) => i.column_id === col.id)
-        .sort((a, b) => a.position - b.position)
-        .map((i) => i.id)
-    }
-    setItems(map)
-  }, [issues, localColumns, isDragging])
-
-  // --- Mutation handlers ---
-
-  const handleCreateColumn = useCallback(
-    async (name: string) => {
-      try {
-        await createColumn(boardId, name)
-        qc.invalidateQueries({
-          queryKey: boardQueries.columns(boardId).queryKey,
-        })
-      } catch {
-        toast.error("Failed to create column")
-      }
-    },
-    [boardId, qc]
-  )
-
-  const handleRenameColumn = useCallback(
-    async (columnId: string, name: string) => {
-      try {
-        await updateColumn(columnId, { name })
-        qc.invalidateQueries({
-          queryKey: boardQueries.columns(boardId).queryKey,
-        })
-      } catch {
-        toast.error("Failed to rename column")
-      }
-    },
-    [boardId, qc]
-  )
-
-  const handleDeleteColumn = useCallback(
-    async (columnId: string) => {
-      try {
-        await deleteColumn(columnId)
-        qc.invalidateQueries({
-          queryKey: boardQueries.columns(boardId).queryKey,
-        })
-      } catch (err: unknown) {
-        const isPostgresError = (e: unknown): e is { code: string } =>
-          typeof e === "object" &&
-          e !== null &&
-          "code" in e &&
-          typeof (e as any).code === "string"
-
-        if (isPostgresError(err) && err.code === "23503") {
-          toast.error(
-            "Cannot delete column with issues. Move or delete issues first."
-          )
-        } else {
-          toast.error("Failed to delete column")
-        }
-      }
-    },
-    [boardId, qc]
-  )
-
-  const handleMoveColumn = useCallback(
-    async (columnId: string, direction: "left" | "right") => {
-      const idx = localColumns.findIndex((c) => c.id === columnId)
-      if (idx === -1) return
-
-      const swapIdx = direction === "left" ? idx - 1 : idx + 1
-      if (swapIdx < 0 || swapIdx >= localColumns.length) return
-
-      const newOrder = [...localColumns]
-      const temp = newOrder[idx]
-      newOrder[idx] = newOrder[swapIdx]
-      newOrder[swapIdx] = temp
-
-      // Optimistic update
-      setLocalColumns(newOrder)
-
-      try {
-        await reorderColumns(
-          boardId,
-          newOrder.map((c) => c.id)
-        )
-        qc.invalidateQueries({
-          queryKey: boardQueries.columns(boardId).queryKey,
-        })
-      } catch {
-        qc.invalidateQueries({
-          queryKey: boardQueries.columns(boardId).queryKey,
-        })
-        toast.error("Failed to reorder columns")
-      }
-    },
-    [localColumns, boardId, qc]
-  )
-
-  // --- Computed values ---
 
   const filteredIssues = useMemo(
     () =>
@@ -225,32 +92,37 @@ function BoardPage() {
     [issues, filters]
   )
 
-  // Issue lookup map for DnD rendering
-  const issueMap = useMemo(() => {
-    const map = new Map<string, Issue>()
-    for (const issue of issues) {
-      map.set(issue.id, issue)
-    }
-    return map
-  }, [issues])
-
-  // Filtered issue IDs for efficient lookup
   const filteredIssueIds = useMemo(
     () => new Set(filteredIssues.map((i) => i.id)),
     [filteredIssues]
   )
 
-  // Get ordered + filtered issues for a column (driven by items state)
-  const getColumnIssues = useCallback(
-    (columnId: string): Issue[] => {
-      const ids = items[columnId] ?? []
-      return ids
-        .filter((id) => filteredIssueIds.has(id))
-        .map((id) => issueMap.get(id))
-        .filter((issue): issue is Issue => issue !== undefined)
-    },
-    [items, filteredIssueIds, issueMap]
-  )
+  const {
+    localColumns,
+    setLocalColumns,
+    isDragging,
+    issueMap,
+    getColumnIssues,
+    dndProps,
+  } = useBoardDnd({
+    boardId,
+    columns,
+    issues,
+    filteredIssueIds,
+    queryClient: qc,
+  })
+
+  const {
+    handleCreateColumn,
+    handleRenameColumn,
+    handleDeleteColumn,
+    handleMoveColumn,
+  } = useBoardMutations({
+    boardId,
+    queryClient: qc,
+    localColumns,
+    setLocalColumns,
+  })
 
   return (
     <SidebarProvider>
@@ -261,7 +133,7 @@ function BoardPage() {
           <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-4">
             <Columns3 className="size-5 text-muted-foreground" />
             <h1 className="truncate text-lg font-semibold sm:text-xl">
-              {boardName || "Loading…"}
+              {boardName || "Loading\u2026"}
             </h1>
             <span className="hidden text-xs text-muted-foreground tabular-nums sm:inline">
               {localColumns.length}{" "}
@@ -342,133 +214,9 @@ function BoardPage() {
                   },
                 }),
               ]}
-              onDragStart={() => {
-                setIsDragging(true)
-                qc.cancelQueries({
-                  queryKey: boardQueries.issues(boardId).queryKey,
-                })
-                itemsSnapshotRef.current = structuredClone(items)
-                columnsSnapshotRef.current = [...localColumns]
-              }}
-              onDragOver={(event) => {
-                const { source } = event.operation
-                if (source?.type === "column") return
-                setItems((currentItems) => {
-                  const next = move(currentItems, event)
-                  itemsRef.current = next
-                  return next
-                })
-              }}
-              onDragEnd={async (event) => {
-                const { source } = event.operation
-                if (!source) {
-                  setIsDragging(false)
-                  return
-                }
-
-                if (event.canceled) {
-                  if (source.type === "item") setItems(itemsSnapshotRef.current)
-                  if (source.type === "column")
-                    setLocalColumns(columnsSnapshotRef.current)
-                  setIsDragging(false)
-                  return
-                }
-
-                if (source.type === "column") {
-                  const target = event.operation.target
-                  if (target && target.type === "column") {
-                    const sourceIdx = localColumns.findIndex(
-                      (c) => c.id === String(source.id)
-                    )
-                    const targetIdx = localColumns.findIndex(
-                      (c) => c.id === String(target.id)
-                    )
-                    if (
-                      sourceIdx !== -1 &&
-                      targetIdx !== -1 &&
-                      sourceIdx !== targetIdx
-                    ) {
-                      const newColumns = [...localColumns]
-                      const [moved] = newColumns.splice(sourceIdx, 1)
-                      newColumns.splice(targetIdx, 0, moved)
-                      setLocalColumns(newColumns)
-                      try {
-                        await reorderColumns(
-                          boardId,
-                          newColumns.map((c) => c.id)
-                        )
-                      } catch {
-                        qc.invalidateQueries({
-                          queryKey: boardQueries.columns(boardId).queryKey,
-                        })
-                        toast.error("Failed to reorder columns")
-                      }
-                    }
-                  }
-                  setIsDragging(false)
-                  return
-                }
-
-                const issueId = String(source.id)
-                const currentItems = itemsRef.current
-
-                let newGroupKey: string | null = null
-                let newPosition = 0
-                for (const [key, ids] of Object.entries(currentItems)) {
-                  const idx = ids.indexOf(issueId)
-                  if (idx !== -1) {
-                    newGroupKey = key
-                    newPosition = idx
-                    break
-                  }
-                }
-
-                if (!newGroupKey || !issueMap.get(issueId)) {
-                  setIsDragging(false)
-                  return
-                }
-
-                const issue = issueMap.get(issueId)!
-                const originalGroupKey = issue.column_id
-                const newColumnId = newGroupKey
-
-                try {
-                  if (originalGroupKey !== newGroupKey) {
-                    await moveIssue(issueId, newColumnId, newPosition)
-                    const targetIds = currentItems[newGroupKey] ?? []
-                    if (targetIds.length > 0)
-                      await reorderIssues(newGroupKey, targetIds)
-                    const origIds = currentItems[originalGroupKey] ?? []
-                    if (origIds.length > 0)
-                      await reorderIssues(originalGroupKey, origIds)
-                  } else {
-                    const ids = currentItems[newGroupKey] ?? []
-                    await reorderIssues(newGroupKey, ids)
-                  }
-                  qc.setQueryData(
-                    boardQueries.issues(boardId).queryKey,
-                    (old: Issue[] | undefined) => {
-                      if (!old) return old
-                      return old.map((iss) => {
-                        for (const [key, ids] of Object.entries(currentItems)) {
-                          const idx = ids.indexOf(iss.id)
-                          if (idx !== -1) {
-                            return { ...iss, column_id: key, position: idx }
-                          }
-                        }
-                        return iss
-                      })
-                    }
-                  )
-                  qc.invalidateQueries({
-                    queryKey: boardQueries.issues(boardId).queryKey,
-                  })
-                } catch {
-                  setItems(itemsSnapshotRef.current)
-                  toast.error("Failed to move issue")
-                }
-                setIsDragging(false)
-              }}
+              onDragStart={dndProps.onDragStart}
+              onDragOver={dndProps.onDragOver}
+              onDragEnd={dndProps.onDragEnd}
             >
               <div
                 className={cn(
