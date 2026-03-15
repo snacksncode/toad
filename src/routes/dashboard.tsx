@@ -16,12 +16,12 @@ import { Plus, Kanban } from "lucide-react"
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async () => {
+    const cachedUser = queryClient.getQueryData(["auth", "user"])
+    if (cachedUser) return
     const {
       data: { session },
     } = await supabase.auth.getSession()
-    if (!session) {
-      throw redirect({ to: "/login" })
-    }
+    if (!session) throw redirect({ to: "/login" })
   },
   loader: async () => {
     const user = queryClient.getQueryData<{ id: string } | null>([

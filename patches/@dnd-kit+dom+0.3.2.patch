@@ -1,0 +1,40 @@
+diff --git a/node_modules/@dnd-kit/dom/utilities.cjs b/node_modules/@dnd-kit/dom/utilities.cjs
+index f64946a..77b0078 100644
+--- a/node_modules/@dnd-kit/dom/utilities.cjs
++++ b/node_modules/@dnd-kit/dom/utilities.cjs
+@@ -248,13 +248,9 @@ function isSafari() {
+ }
+ 
+ // src/utilities/execution-context/getFixedPositionOffset.ts
++// Patched: reverts Safari visualViewport regression (https://github.com/clauderic/dnd-kit/issues/1910)
+ function getFixedPositionOffset() {
+-  var _a, _b;
+-  const vv = isSafari() ? window.visualViewport : null;
+-  return {
+-    x: (_a = vv == null ? void 0 : vv.offsetLeft) != null ? _a : 0,
+-    y: (_b = vv == null ? void 0 : vv.offsetTop) != null ? _b : 0
+-  };
++  return { x: 0, y: 0 };
+ }
+ 
+ // src/utilities/type-guards/isShadowRoot.ts
+diff --git a/node_modules/@dnd-kit/dom/utilities.js b/node_modules/@dnd-kit/dom/utilities.js
+index 168e0d3..44189a7 100644
+--- a/node_modules/@dnd-kit/dom/utilities.js
++++ b/node_modules/@dnd-kit/dom/utilities.js
+@@ -246,13 +246,9 @@ function isSafari() {
+ }
+ 
+ // src/utilities/execution-context/getFixedPositionOffset.ts
++// Patched: reverts Safari visualViewport regression (https://github.com/clauderic/dnd-kit/issues/1910)
+ function getFixedPositionOffset() {
+-  var _a, _b;
+-  const vv = isSafari() ? window.visualViewport : null;
+-  return {
+-    x: (_a = vv == null ? void 0 : vv.offsetLeft) != null ? _a : 0,
+-    y: (_b = vv == null ? void 0 : vv.offsetTop) != null ? _b : 0
+-  };
++  return { x: 0, y: 0 };
+ }
+ 
+ // src/utilities/type-guards/isShadowRoot.ts

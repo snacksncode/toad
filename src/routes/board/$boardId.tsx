@@ -37,12 +37,12 @@ import { useIsMobile } from "@/hooks/use-mobile"
 
 export const Route = createFileRoute("/board/$boardId")({
   beforeLoad: async () => {
+    const cachedUser = queryClient.getQueryData(["auth", "user"])
+    if (cachedUser) return
     const {
       data: { session },
     } = await supabase.auth.getSession()
-    if (!session) {
-      throw redirect({ to: "/login" })
-    }
+    if (!session) throw redirect({ to: "/login" })
   },
   loader: ({ params: { boardId } }) =>
     Promise.all([

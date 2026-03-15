@@ -9,7 +9,8 @@
     "test": "vitest run",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@dnd-kit/abstract": "^0.3.2",
@@ -52,6 +53,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "^1.0.0",
     "jsdom": "^27.0.0",
+    "patch-package": "^8.0.1",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "typescript": "^5.7.2",

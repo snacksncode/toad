@@ -118,7 +118,7 @@ export function IssueCard({ issue, index, columnId, onClick }: IssueCardProps) {
         "min-h-[44px] w-full cursor-pointer rounded-lg border border-border/60 bg-background px-3.5 py-3 text-left transition-all select-none hover:border-border hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[0.98]",
         isDragSource && "opacity-40"
       )}
-      style={{ touchAction: "none" }}
+      style={{ touchAction: "manipulation" }}
     >
       <IssueCardContent issue={issue} overdue={overdue} />
     </div>
