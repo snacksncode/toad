@@ -233,6 +233,7 @@ function BoardPage() {
                       issues={getColumnIssues(col.id)}
                       isFirst={idx === 0}
                       isLast={idx === localColumns.length - 1}
+                      projectId={boardId}
                       onRename={(name) => handleRenameColumn(col.id, name)}
                       onDelete={() => handleDeleteColumn(col.id)}
                       onMoveLeft={() => handleMoveColumn(col.id, "left")}

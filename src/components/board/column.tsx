@@ -7,9 +7,11 @@ import {
   Trash2,
   Pencil,
   GripVertical,
+  Plus,
 } from "lucide-react"
 import { useSortable } from "@dnd-kit/react/sortable"
 import { CollisionPriority } from "@dnd-kit/abstract"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -21,6 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { IssueCard } from "@/components/board/issue-card"
 import { cn } from "@/lib/utils"
+import { createIssue } from "@/lib/queries/issues"
+import { boardQueries } from "@/lib/query-keys"
 import type { Column as ColumnType, Issue } from "@/lib/database.types"
 
 interface ColumnProps {
@@ -29,6 +33,7 @@ interface ColumnProps {
   issues: Issue[]
   isFirst: boolean
   isLast: boolean
+  projectId: string
   onRename: (name: string) => void
   onDelete: () => void
   onMoveLeft: () => void
@@ -42,6 +47,7 @@ export function Column({
   issues,
   isFirst,
   isLast,
+  projectId,
   onRename,
   onDelete,
   onMoveLeft,
@@ -50,6 +56,38 @@ export function Column({
 }: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(column.name)
+  const [isAddingIssue, setIsAddingIssue] = useState(false)
+  const [newIssueTitle, setNewIssueTitle] = useState("")
+  const queryClient = useQueryClient()
+
+  const addIssueMutation = useMutation({
+    mutationFn: (title: string) =>
+      createIssue({
+        title,
+        column_id: column.id,
+        project_id: projectId,
+        priority: "medium",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: boardQueries.issues(projectId).queryKey,
+      })
+      setNewIssueTitle("")
+      setIsAddingIssue(false)
+    },
+  })
+
+  const handleAddIssueSubmit = useCallback(() => {
+    const trimmed = newIssueTitle.trim()
+    if (trimmed) {
+      addIssueMutation.mutate(trimmed)
+    }
+  }, [newIssueTitle, addIssueMutation])
+
+  const handleAddIssueCancel = useCallback(() => {
+    setNewIssueTitle("")
+    setIsAddingIssue(false)
+  }, [])
 
   const commitRename = useCallback(() => {
     const trimmed = editValue.trim()
@@ -161,7 +199,7 @@ export function Column({
 
       {/* Column Body */}
       <div className="relative min-h-[200px] flex-1 px-2.5 py-2.5">
-        {issues.length === 0 && (
+        {issues.length === 0 && !isAddingIssue && (
           <p className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground/60 select-none">
             No issues
           </p>
@@ -177,6 +215,33 @@ export function Column({
             />
           ))}
         </div>
+      </div>
+
+      {/* Add Issue */}
+      <div className="px-2.5 pb-2.5">
+        {isAddingIssue ? (
+          <Input
+            autoFocus
+            placeholder="Issue title…"
+            value={newIssueTitle}
+            onChange={(e) => setNewIssueTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAddIssueSubmit()
+              if (e.key === "Escape") handleAddIssueCancel()
+            }}
+            onBlur={handleAddIssueCancel}
+            disabled={addIssueMutation.isPending}
+            className="h-8 text-sm"
+          />
+        ) : (
+          <button
+            onClick={() => setIsAddingIssue(true)}
+            className="flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+          >
+            <Plus className="size-3" />
+            Add issue
+          </button>
+        )}
       </div>
     </div>
   )
