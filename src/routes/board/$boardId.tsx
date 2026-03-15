@@ -32,6 +32,8 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/dom"
 import { IssueCardOverlay } from "@/components/board/issue-card"
+import { MobileColumnSection } from "@/components/board/mobile-column-section"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export const Route = createFileRoute("/board/$boardId")({
   beforeLoad: async () => {
@@ -57,6 +59,7 @@ function BoardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [filters, setFilters] = useState<FilterState>({
@@ -218,32 +221,52 @@ function BoardPage() {
               onDragOver={dndProps.onDragOver}
               onDragEnd={dndProps.onDragEnd}
             >
-              <div
-                className={cn(
-                  "flex-1 overflow-x-auto overflow-y-hidden",
-                  !isDragging && "snap-x snap-mandatory md:snap-none"
-                )}
-              >
-                <div className="flex h-full items-start gap-3 px-4 py-3 md:gap-5 md:px-6 md:py-6">
-                  {localColumns.map((col, idx) => (
-                    <Column
-                      key={col.id}
-                      column={col}
-                      index={idx}
-                      issues={getColumnIssues(col.id)}
-                      isFirst={idx === 0}
-                      isLast={idx === localColumns.length - 1}
-                      projectId={boardId}
-                      onRename={(name) => handleRenameColumn(col.id, name)}
-                      onDelete={() => handleDeleteColumn(col.id)}
-                      onMoveLeft={() => handleMoveColumn(col.id, "left")}
-                      onMoveRight={() => handleMoveColumn(col.id, "right")}
-                      onIssueClick={(issue) => setSelectedIssue(issue)}
-                    />
-                  ))}
-                  <AddColumnButton onAdd={handleCreateColumn} />
+              {isMobile ? (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="flex flex-col py-2">
+                    {localColumns.map((col, idx) => (
+                      <MobileColumnSection
+                        key={col.id}
+                        column={col}
+                        index={idx}
+                        issues={getColumnIssues(col.id)}
+                        boardId={boardId}
+                        onIssueClick={(issue) => setSelectedIssue(issue)}
+                      />
+                    ))}
+                    <div className="px-4 pb-4">
+                      <AddColumnButton onAdd={handleCreateColumn} />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div
+                  className={cn(
+                    "flex-1 overflow-x-auto overflow-y-hidden",
+                    !isDragging && "snap-x snap-mandatory md:snap-none"
+                  )}
+                >
+                  <div className="flex h-full items-start gap-3 px-4 py-3 md:gap-5 md:px-6 md:py-6">
+                    {localColumns.map((col, idx) => (
+                      <Column
+                        key={col.id}
+                        column={col}
+                        index={idx}
+                        issues={getColumnIssues(col.id)}
+                        isFirst={idx === 0}
+                        isLast={idx === localColumns.length - 1}
+                        projectId={boardId}
+                        onRename={(name) => handleRenameColumn(col.id, name)}
+                        onDelete={() => handleDeleteColumn(col.id)}
+                        onMoveLeft={() => handleMoveColumn(col.id, "left")}
+                        onMoveRight={() => handleMoveColumn(col.id, "right")}
+                        onIssueClick={(issue) => setSelectedIssue(issue)}
+                      />
+                    ))}
+                    <AddColumnButton onAdd={handleCreateColumn} />
+                  </div>
+                </div>
+              )}
               <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
                 {(source) => {
                   if (source.type === "column") {
