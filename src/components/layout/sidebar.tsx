@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import {
   Sidebar,
   SidebarContent,
@@ -12,13 +12,8 @@ import {
 } from "@/components/ui/sidebar"
 import { Link } from "@tanstack/react-router"
 import { LayoutDashboard, Kanban, Plus } from "lucide-react"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
-
-interface BoardItem {
-  id: string
-  name: string
-}
+import { projectQueries } from "@/lib/query-keys"
 
 interface AppSidebarProps {
   activeBoardId?: string
@@ -26,44 +21,20 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activeBoardId }: AppSidebarProps) {
   const { user } = useAuth()
-  const [boards, setBoards] = useState<BoardItem[]>([])
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!user) return
-
-    async function fetchBoards() {
-      setLoading(true)
-      // Get project IDs the user is a member of
-      const { data: memberships } = await supabase
-        .from("project_members")
-        .select("project_id")
-        .eq("user_id", user!.id)
-
-      if (memberships && memberships.length > 0) {
-        const projectIds = memberships.map((m) => m.project_id)
-        const { data: projects } = await supabase
-          .from("projects")
-          .select("id, name")
-          .in("id", projectIds)
-          .order("name", { ascending: true })
-
-        if (projects) {
-          setBoards(projects)
-        }
-      } else {
-        setBoards([])
-      }
-      setLoading(false)
-    }
-
-    fetchBoards()
-  }, [user])
+  const { data: boards = [], isLoading: loading } = useQuery({
+    ...projectQueries.list(user?.id ?? ""),
+    enabled: !!user,
+    select: (data) =>
+      data
+        .map(({ id, name }) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+  })
 
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link to="/dashboard" className="font-bold text-lg">
+        <Link to="/dashboard" className="text-lg font-bold">
           🐸 Toad
         </Link>
       </SidebarHeader>
@@ -99,10 +70,7 @@ export function AppSidebar({ activeBoardId }: AppSidebarProps) {
                     asChild
                     isActive={activeBoardId === board.id}
                   >
-                    <Link
-                      to="/board/$boardId"
-                      params={{ boardId: board.id }}
-                    >
+                    <Link to="/board/$boardId" params={{ boardId: board.id }}>
                       <Kanban className="size-4" />
                       <span className="truncate">{board.name}</span>
                     </Link>

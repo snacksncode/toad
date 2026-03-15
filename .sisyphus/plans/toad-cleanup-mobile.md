@@ -459,7 +459,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES
   - Message: `refactor(data): replace useEffect data fetching with React Query and props`
 
-- [ ] 7. Tighten type safety
+- [x] 7. Tighten type safety
 
   **What to do**:
   - `src/lib/supabase.ts:4-5`: replace `as string` casts with runtime env validation (throw if missing)

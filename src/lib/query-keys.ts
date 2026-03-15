@@ -1,12 +1,44 @@
-export const boardKeys = {
-  all: ["boards"] as const,
-  detail: (boardId: string) => ["boards", boardId] as const,
-  columns: (boardId: string) => ["boards", boardId, "columns"] as const,
-  issues: (boardId: string) => ["boards", boardId, "issues"] as const,
-  members: (boardId: string) => ["boards", boardId, "members"] as const,
+import { queryOptions } from "@tanstack/react-query"
+import { supabase } from "@/lib/supabase"
+import { getProjectColumns } from "@/lib/queries/columns"
+import { getProjectIssues } from "@/lib/queries/issues"
+import { getProjectMembers } from "@/lib/queries/members"
+import { getUserProjects } from "@/lib/queries/projects"
+
+export const boardQueries = {
+  name: (boardId: string) =>
+    queryOptions({
+      queryKey: ["boards", boardId, "name"] as const,
+      queryFn: async () => {
+        const { data } = await supabase
+          .from("projects")
+          .select("name")
+          .eq("id", boardId)
+          .single()
+        return data?.name ?? ""
+      },
+    }),
+  columns: (boardId: string) =>
+    queryOptions({
+      queryKey: ["boards", boardId, "columns"] as const,
+      queryFn: () => getProjectColumns(boardId),
+    }),
+  issues: (boardId: string) =>
+    queryOptions({
+      queryKey: ["boards", boardId, "issues"] as const,
+      queryFn: () => getProjectIssues(boardId),
+    }),
+  members: (boardId: string) =>
+    queryOptions({
+      queryKey: ["boards", boardId, "members"] as const,
+      queryFn: () => getProjectMembers(boardId),
+    }),
 }
 
-export const projectKeys = {
-  all: ["projects"] as const,
-  list: (userId: string) => ["projects", "list", userId] as const,
+export const projectQueries = {
+  list: (userId: string) =>
+    queryOptions({
+      queryKey: ["projects", "list", userId] as const,
+      queryFn: () => getUserProjects(userId),
+    }),
 }

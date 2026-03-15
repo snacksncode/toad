@@ -31,17 +31,15 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Avatar } from "@/components/avatar"
 import { updateIssue, deleteIssue, moveIssue } from "@/lib/queries/issues"
-import { getProjectMembers } from "@/lib/queries/members"
-import type { Column, Issue } from "@/lib/database.types"
-import type { ProjectMember } from "@/lib/database.types"
+import type { Column, Issue, ProjectMember } from "@/lib/database.types"
 import { toast } from "sonner"
 import { Trash2, X, Plus } from "lucide-react"
 import { DatePicker } from "@/components/ui/date-picker"
 
 interface IssuePanelProps {
   issue: Issue | null
-  projectId: string
   columns: Column[]
+  members: ProjectMember[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onIssueUpdated: (issue: Issue) => void
@@ -50,8 +48,8 @@ interface IssuePanelProps {
 
 export function IssuePanel({
   issue,
-  projectId,
   columns,
+  members,
   open,
   onOpenChange,
   onIssueUpdated,
@@ -59,27 +57,15 @@ export function IssuePanel({
 }: IssuePanelProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
-  const [members, setMembers] = useState<ProjectMember[]>([])
   const [labelInput, setLabelInput] = useState("")
   const labelInputRef = useRef<HTMLInputElement>(null)
 
-  // Sync local state when issue changes
   useEffect(() => {
     if (issue) {
       setTitle(issue.title)
       setDescription(issue.description)
     }
   }, [issue])
-
-  // Fetch members once per project
-  useEffect(() => {
-    if (!projectId) return
-    getProjectMembers(projectId)
-      .then(setMembers)
-      .catch(() => {
-        /* silently fail — dropdown just shows no members */
-      })
-  }, [projectId])
 
   const saveField = useCallback(
     async (field: string, value: unknown) => {

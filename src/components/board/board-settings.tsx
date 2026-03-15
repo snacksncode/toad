@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   Sheet,
   SheetContent,
@@ -23,11 +24,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Avatar } from "@/components/avatar"
-import {
-  getProjectMembers,
-  addMember,
-  removeMember,
-} from "@/lib/queries/members"
+import { addMember, removeMember } from "@/lib/queries/members"
+import { boardQueries } from "@/lib/query-keys"
 import type { ProjectMember } from "@/lib/database.types"
 import { toast } from "sonner"
 import { Loader2, Trash2, UserPlus, UserMinus } from "lucide-react"
@@ -36,6 +34,7 @@ interface BoardSettingsProps {
   projectId: string
   projectName: string
   currentUserId: string
+  members: ProjectMember[]
   onRename: (name: string) => void
   onDelete: () => void
   open: boolean
@@ -46,15 +45,15 @@ export function BoardSettings({
   projectId,
   projectName,
   currentUserId,
+  members,
   onRename,
   onDelete,
   open,
   onOpenChange,
 }: BoardSettingsProps) {
+  const qc = useQueryClient()
   const [name, setName] = useState(projectName)
-  const [members, setMembers] = useState<ProjectMember[]>([])
   const [newEmail, setNewEmail] = useState("")
-  const [loadingMembers, setLoadingMembers] = useState(false)
   const [saving, setSaving] = useState(false)
   const [addingMember, setAddingMember] = useState(false)
   const [removingId, setRemovingId] = useState<string | null>(null)
@@ -63,24 +62,11 @@ export function BoardSettings({
   const currentUserMember = members.find((m) => m.user_id === currentUserId)
   const isOwner = currentUserMember?.role === "owner"
 
-  const fetchMembers = useCallback(async () => {
-    setLoadingMembers(true)
-    try {
-      const data = await getProjectMembers(projectId)
-      setMembers(data)
-    } catch {
-      toast.error("Failed to load members")
-    } finally {
-      setLoadingMembers(false)
-    }
-  }, [projectId])
-
   useEffect(() => {
     if (open) {
       setName(projectName)
-      fetchMembers()
     }
-  }, [open, projectName, fetchMembers])
+  }, [open, projectName])
 
   const handleSaveName = async () => {
     const trimmed = name.trim()
@@ -104,11 +90,12 @@ export function BoardSettings({
     try {
       await addMember(projectId, trimmed)
       setNewEmail("")
-      await fetchMembers()
+      await qc.invalidateQueries({
+        queryKey: boardQueries.members(projectId).queryKey,
+      })
       toast.success("Member invited")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error"
-      // Check for Postgres unique constraint error
       const isPostgresError = (
         e: unknown
       ): e is { code: string; message: string } =>
@@ -131,7 +118,9 @@ export function BoardSettings({
     setRemovingId(memberId)
     try {
       await removeMember(memberId)
-      await fetchMembers()
+      await qc.invalidateQueries({
+        queryKey: boardQueries.members(projectId).queryKey,
+      })
       toast.success("Member removed")
     } catch {
       toast.error("Failed to remove member")
@@ -192,9 +181,6 @@ export function BoardSettings({
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">Members</Label>
-              {loadingMembers && (
-                <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-              )}
             </div>
 
             {/* Member List */}
