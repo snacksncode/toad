@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useRef, useCallback } from "react"
 import {
   Sheet,
   SheetContent,
@@ -55,17 +55,10 @@ export function IssuePanel({
   onIssueUpdated,
   onIssueDeleted,
 }: IssuePanelProps) {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
+  const [title, setTitle] = useState(issue?.title ?? "")
+  const [description, setDescription] = useState(issue?.description ?? "")
   const [labelInput, setLabelInput] = useState("")
   const labelInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (issue) {
-      setTitle(issue.title)
-      setDescription(issue.description)
-    }
-  }, [issue])
 
   const saveField = useCallback(
     async (field: string, value: unknown) => {

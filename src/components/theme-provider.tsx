@@ -51,20 +51,39 @@ function getThemeById(id: string): Theme | undefined {
 // (e.g. sidebar vars from Sakura) don't persist when switching
 // to a theme that doesn't set them.
 const THEME_PROPERTIES = [
-  "background", "foreground",
-  "card", "card-foreground",
-  "popover", "popover-foreground",
-  "primary", "primary-foreground",
-  "secondary", "secondary-foreground",
-  "muted", "muted-foreground",
-  "accent", "accent-foreground",
-  "destructive", "destructive-foreground",
-  "border", "input", "ring", "radius",
-  "chart-1", "chart-2", "chart-3", "chart-4", "chart-5",
-  "sidebar", "sidebar-foreground",
-  "sidebar-primary", "sidebar-primary-foreground",
-  "sidebar-accent", "sidebar-accent-foreground",
-  "sidebar-border", "sidebar-ring",
+  "background",
+  "foreground",
+  "card",
+  "card-foreground",
+  "popover",
+  "popover-foreground",
+  "primary",
+  "primary-foreground",
+  "secondary",
+  "secondary-foreground",
+  "muted",
+  "muted-foreground",
+  "accent",
+  "accent-foreground",
+  "destructive",
+  "destructive-foreground",
+  "border",
+  "input",
+  "ring",
+  "radius",
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
+  "sidebar",
+  "sidebar-foreground",
+  "sidebar-primary",
+  "sidebar-primary-foreground",
+  "sidebar-accent",
+  "sidebar-accent-foreground",
+  "sidebar-border",
+  "sidebar-ring",
 ]
 
 function applyThemeVars(theme: Theme, colorMode: ColorMode) {
@@ -86,9 +105,14 @@ function applyColorMode(colorMode: ColorMode) {
 }
 
 /** Persist theme preference to DB (fire-and-forget). */
-async function persistPreference(updates: { theme?: string; color_mode?: string }) {
+async function persistPreference(updates: {
+  theme?: string
+  color_mode?: string
+}) {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (user) {
       await supabase.from("profiles").update(updates).eq("id", user.id)
     }
@@ -134,61 +158,73 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Sync theme from DB when user signs in
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
-          try {
-            const { data } = await supabase
-              .from("profiles")
-              .select("theme, color_mode")
-              .eq("id", session.user.id)
-              .single()
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (
+        (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+        session?.user
+      ) {
+        try {
+          const { data } = await supabase
+            .from("profiles")
+            .select("theme, color_mode")
+            .eq("id", session.user.id)
+            .single()
 
-            if (!data) return
+          if (!data) return
 
-            const dbTheme = data.theme as string | null
-            const dbColorMode = data.color_mode as ColorMode | null
+          const dbTheme = data.theme as string | null
+          const dbColorMode = data.color_mode as ColorMode | null
 
-            // Sync color mode from DB if it differs from local
-            if (dbColorMode && (dbColorMode === "light" || dbColorMode === "dark")) {
-              const localMode = getStoredColorMode()
-              if (dbColorMode !== localMode) {
-                setColorMode(dbColorMode)
-                localStorage.setItem(COLOR_MODE_KEY, dbColorMode)
-                applyColorMode(dbColorMode)
-              }
+          // Sync color mode from DB if it differs from local
+          if (
+            dbColorMode &&
+            (dbColorMode === "light" || dbColorMode === "dark")
+          ) {
+            const localMode = getStoredColorMode()
+            if (dbColorMode !== localMode) {
+              setColorMode(dbColorMode)
+              localStorage.setItem(COLOR_MODE_KEY, dbColorMode)
+              applyColorMode(dbColorMode)
             }
-
-            // Sync theme from DB if it differs from local
-            if (dbTheme) {
-              const localTheme = getStoredTheme()
-              if (dbTheme !== localTheme) {
-                const found = getThemeById(dbTheme)
-                if (found) {
-                  setThemeState(dbTheme)
-                  localStorage.setItem(THEME_KEY, dbTheme)
-                  applyThemeVars(found, dbColorMode ?? getStoredColorMode())
-                }
-              }
-            }
-          } catch {
-            // Columns might not exist yet — silently ignore
           }
+
+          // Sync theme from DB if it differs from local
+          if (dbTheme) {
+            const localTheme = getStoredTheme()
+            if (dbTheme !== localTheme) {
+              const found = getThemeById(dbTheme)
+              if (found) {
+                setThemeState(dbTheme)
+                localStorage.setItem(THEME_KEY, dbTheme)
+                applyThemeVars(found, dbColorMode ?? getStoredColorMode())
+              }
+            }
+          }
+        } catch {
+          // Columns might not exist yet — silently ignore
         }
       }
-    )
+    })
     return () => subscription.unsubscribe()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // Mount-only: subscribes to auth changes for DB→local theme sync.
+    // State setters (setColorMode, setThemeState) are stable and don't need deps.
+  }, [])
 
-  // Apply on mount
+  // Apply theme + color mode on initial mount only — subsequent changes
+  // are applied imperatively by setTheme / toggleColorMode callbacks.
   useEffect(() => {
     const found = getThemeById(theme)
     if (found) applyThemeVars(found, colorMode)
     applyColorMode(colorMode)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    // Mount-only: reads initial state to sync DOM. Callbacks handle updates after mount.
+  }, [])
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, colorMode, toggleColorMode }}>
+    <ThemeContext.Provider
+      value={{ theme, setTheme, colorMode, toggleColorMode }}
+    >
       {children}
     </ThemeContext.Provider>
   )

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useCallback } from "react"
 
 import {
   MoreVertical,
@@ -50,14 +50,6 @@ export function Column({
 }: ColumnProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(column.name)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [isEditing])
 
   const commitRename = useCallback(() => {
     const trimmed = editValue.trim()
@@ -103,9 +95,10 @@ export function Column({
         </div>
         {isEditing ? (
           <Input
-            ref={inputRef}
+            autoFocus
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
             onBlur={commitRename}
             onKeyDown={(e) => {
               if (e.key === "Enter") commitRename()

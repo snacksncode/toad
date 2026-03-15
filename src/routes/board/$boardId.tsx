@@ -91,13 +91,15 @@ function BoardPage() {
   const itemsRef = useRef<Record<string, string[]>>({})
   const itemsSnapshotRef = useRef<Record<string, string[]>>({})
   const columnsSnapshotRef = useRef<ColumnType[]>([])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Sync server columns into local DnD state.
+  // Skips during drag so optimistic reorder isn't overwritten mid-gesture.
   useEffect(() => {
     if (isDragging) return
     setLocalColumns(columns)
-  }, [columns])
+  }, [columns, isDragging])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Build columnId→issueId[] map for DnD visual ordering.
+  // Skips during drag so the dragged layout isn't reset by a server refresh.
   useEffect(() => {
     if (isDragging) return
     const map: Record<string, string[]> = {}
@@ -108,7 +110,7 @@ function BoardPage() {
         .map((i) => i.id)
     }
     setItems(map)
-  }, [issues, localColumns])
+  }, [issues, localColumns, isDragging])
 
   // --- Mutation handlers ---
 
@@ -559,6 +561,7 @@ function BoardPage() {
           />
         )}
         <IssuePanel
+          key={selectedIssue?.id}
           issue={selectedIssue}
           columns={localColumns}
           members={members}

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,13 +10,6 @@ interface AddColumnButtonProps {
 export function AddColumnButton({ onAdd }: AddColumnButtonProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [name, setName] = useState("")
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (isAdding && inputRef.current) {
-      inputRef.current.focus()
-    }
-  }, [isAdding])
 
   function handleSubmit() {
     const trimmed = name.trim()
@@ -34,9 +27,9 @@ export function AddColumnButton({ onAdd }: AddColumnButtonProps) {
 
   if (isAdding) {
     return (
-      <div className="flex flex-col w-72 shrink-0 rounded-xl bg-muted/50 border border-border/50 p-3 gap-2">
+      <div className="flex w-72 shrink-0 flex-col gap-2 rounded-xl border border-border/50 bg-muted/50 p-3">
         <Input
-          ref={inputRef}
+          autoFocus
           placeholder="Column name…"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -47,7 +40,11 @@ export function AddColumnButton({ onAdd }: AddColumnButtonProps) {
           className="h-8 text-sm"
         />
         <div className="flex gap-1.5">
-          <Button size="sm" className="h-7 text-xs flex-1" onClick={handleSubmit}>
+          <Button
+            size="sm"
+            className="h-7 flex-1 text-xs"
+            onClick={handleSubmit}
+          >
             Add Column
           </Button>
           <Button
@@ -66,7 +63,7 @@ export function AddColumnButton({ onAdd }: AddColumnButtonProps) {
   return (
     <button
       onClick={() => setIsAdding(true)}
-      className="flex items-center justify-center w-72 shrink-0 min-h-[200px] rounded-xl border-2 border-dashed border-border/40 hover:border-border/70 hover:bg-muted/30 transition-colors text-muted-foreground hover:text-foreground cursor-pointer gap-2"
+      className="flex min-h-[200px] w-72 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/40 text-muted-foreground transition-colors hover:border-border/70 hover:bg-muted/30 hover:text-foreground"
     >
       <Plus className="size-4" />
       <span className="text-sm font-medium">Add Column</span>
