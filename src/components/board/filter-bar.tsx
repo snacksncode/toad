@@ -233,6 +233,7 @@ export function FilterBar({
           }
           placeholder="Search issues…"
           className="h-8 w-40 pl-7 text-xs sm:w-52"
+          aria-label="Search issues"
         />
       </div>
 
