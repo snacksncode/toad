@@ -175,8 +175,13 @@ function BoardPage() {
           queryKey: ["boards", boardId, "columns"],
         })
       } catch (err: unknown) {
-        const pgError = err as { code?: string }
-        if (pgError.code === "23503") {
+        const isPostgresError = (e: unknown): e is { code: string } =>
+          typeof e === "object" &&
+          e !== null &&
+          "code" in e &&
+          typeof (e as any).code === "string"
+
+        if (isPostgresError(err) && err.code === "23503") {
           toast.error(
             "Cannot delete column with issues. Move or delete issues first."
           )

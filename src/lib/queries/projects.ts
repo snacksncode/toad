@@ -19,23 +19,25 @@ export async function getUserProjects(
 
   const projectIds = memberships.map((m) => m.project_id)
 
-  // 2. Fetch those projects
-  const { data: projects, error: projectError } = await supabase
-    .from("projects")
-    .select("id, name, owner_id, created_at")
-    .in("id", projectIds)
-    .order("created_at", { ascending: false })
+  // 2. Parallelize fetching projects and member counts (independent queries)
+  const [projectsResult, membersResult] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("id, name, owner_id, created_at")
+      .in("id", projectIds)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("project_members")
+      .select("project_id")
+      .in("project_id", projectIds),
+  ])
+
+  const { data: projects, error: projectError } = projectsResult
+  const { data: allMembers, error: countError } = membersResult
 
   if (projectError) throw projectError
-  if (!projects) return []
-
-  // 3. Get member counts per project
-  const { data: allMembers, error: countError } = await supabase
-    .from("project_members")
-    .select("project_id")
-    .in("project_id", projectIds)
-
   if (countError) throw countError
+  if (!projects) return []
 
   const countMap = new Map<string, number>()
   for (const row of allMembers ?? []) {
@@ -63,14 +65,12 @@ export async function createProject(
   if (projectError) throw projectError
 
   // 2. Add the creator as owner in project_members
-  const { error: memberError } = await supabase
-    .from("project_members")
-    .insert({
-      project_id: project.id,
-      user_id: userId,
-      invited_email: userEmail,
-      role: "owner",
-    })
+  const { error: memberError } = await supabase.from("project_members").insert({
+    project_id: project.id,
+    user_id: userId,
+    invited_email: userEmail,
+    role: "owner",
+  })
 
   if (memberError) throw memberError
 
@@ -103,10 +103,7 @@ export async function updateProject(
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
-  const { error } = await supabase
-    .from("projects")
-    .delete()
-    .eq("id", projectId)
+  const { error } = await supabase.from("projects").delete().eq("id", projectId)
 
   if (error) throw error
 }

@@ -107,11 +107,20 @@ export function BoardSettings({
       await fetchMembers()
       toast.success("Member invited")
     } catch (err: unknown) {
-      const pgError = err as { code?: string; message?: string }
-      if (pgError.code === "23505") {
+      const message = err instanceof Error ? err.message : "Unknown error"
+      // Check for Postgres unique constraint error
+      const isPostgresError = (
+        e: unknown
+      ): e is { code: string; message: string } =>
+        typeof e === "object" &&
+        e !== null &&
+        "code" in e &&
+        typeof (e as any).code === "string"
+
+      if (isPostgresError(err) && err.code === "23505") {
         toast.error("This email has already been invited")
       } else {
-        toast.error(pgError.message ?? "Failed to add member")
+        toast.error(message || "Failed to add member")
       }
     } finally {
       setAddingMember(false)
@@ -172,11 +181,7 @@ export function BoardSettings({
                 disabled={saving || !name.trim() || name.trim() === projectName}
                 size="sm"
               >
-                {saving ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  "Save"
-                )}
+                {saving ? <Loader2 className="size-4 animate-spin" /> : "Save"}
               </Button>
             </div>
           </div>
@@ -206,24 +211,20 @@ export function BoardSettings({
                     className="flex items-center gap-3 rounded-lg border px-3 py-2"
                   >
                     <Avatar email={member.invited_email} size="sm" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-sm truncate">
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm">
                         {member.invited_email}
                         {isSelf && (
                           <span className="text-muted-foreground"> (you)</span>
                         )}
                       </span>
-                      <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="mt-0.5 flex items-center gap-1.5">
                         <Badge
-                          variant={
-                            isMemberOwner ? "default" : "secondary"
-                          }
+                          variant={isMemberOwner ? "default" : "secondary"}
                         >
                           {member.role}
                         </Badge>
-                        <Badge
-                          variant={isActive ? "outline" : "ghost"}
-                        >
+                        <Badge variant={isActive ? "outline" : "ghost"}>
                           {isActive ? "Active" : "Pending"}
                         </Badge>
                       </div>
@@ -250,7 +251,7 @@ export function BoardSettings({
 
             {/* Add Member (owner only) */}
             {isOwner && (
-              <div className="flex gap-2 mt-1">
+              <div className="mt-1 flex gap-2">
                 <Input
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
@@ -290,7 +291,7 @@ export function BoardSettings({
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" className="w-full">
-                      <Trash2 className="size-4 mr-2" />
+                      <Trash2 className="mr-2 size-4" />
                       Delete Board
                     </Button>
                   </AlertDialogTrigger>
@@ -311,7 +312,7 @@ export function BoardSettings({
                         disabled={deleting}
                       >
                         {deleting ? (
-                          <Loader2 className="size-4 animate-spin mr-2" />
+                          <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : null}
                         Delete
                       </AlertDialogAction>

@@ -139,7 +139,7 @@ Max Concurrent: 5 (Wave 1)
 
 ### PHASE 1: CLEANUP
 
-- [ ] 1. Delete dead code files & exports
+- [x] 1. Delete dead code files & exports
 
   **What to do**:
   - Delete `src/lib/auth.ts` (never imported — confirmed by all 4 agents)
@@ -187,7 +187,7 @@ Max Concurrent: 5 (Wave 1)
   - Message: `chore: remove dead code (auth.ts, create-issue-dialog, unused exports)`
   - Files: `src/lib/auth.ts`, `src/components/board/create-issue-dialog.tsx`, `src/lib/queries/issues.ts`, `src/lib/database.types.ts`, `src/hooks/use-auth.ts`, `package.json`
 
-- [ ] 2. Fix backlog column_id type artifacts
+- [x] 2. Fix backlog column_id type artifacts
 
   **What to do**:
   - In `src/lib/database.types.ts`: change `IssueInsert.column_id` from `string | null` to `string`, `IssueUpdate.column_id` from `string | null` to `string | undefined` (optional for partial updates, never null)
@@ -226,7 +226,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES
   - Message: `fix: tighten column_id types after backlog removal`
 
-- [ ] 3. Rewrite useAuth as React Query hook (no context needed)
+- [x] 3. Rewrite useAuth as React Query hook (no context needed)
 
   **What to do**:
   - Rewrite `src/hooks/use-auth.ts` to use `useQuery` with `staleTime: Infinity` for the user state
@@ -271,7 +271,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES
   - Message: `refactor(auth): rewrite useAuth as React Query hook with staleTime Infinity`
 
-- [ ] 4. Install React Compiler + deduplicate IssueCard/IssueCardOverlay
+- [x] 4. Install React Compiler + deduplicate IssueCard/IssueCardOverlay
 
   **What to do**:
   - Install `babel-plugin-react-compiler` as devDependency
@@ -321,7 +321,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES
   - Message: `refactor: install React Compiler, extract shared IssueCardContent`
 
-- [ ] 5. Accessibility fixes
+- [x] 5. Accessibility fixes
 
   **What to do**:
   - `src/components/board/filter-bar.tsx:228`: add `aria-label="Search issues"` to desktop search input
