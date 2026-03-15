@@ -1,55 +1,37 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
-import type { Session, User } from "@supabase/supabase-js"
+
+const AUTH_QUERY_KEY = ["auth", "user"] as const
 
 export function useAuth() {
-  const [session, setSession] = useState<Session | null>(null)
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  const { data: user, isLoading } = useQuery({
+    queryKey: AUTH_QUERY_KEY,
+    queryFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      return user ?? null
+    },
+    staleTime: Infinity,
+    retry: false,
+  })
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    // Subscribe to auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+      queryClient.setQueryData(AUTH_QUERY_KEY, session?.user ?? null)
     })
-
     return () => subscription.unsubscribe()
-  }, [])
+  }, [queryClient])
 
-  const handleSignIn = useCallback(
-    async (email: string, password: string) => {
-      return supabase.auth.signInWithPassword({ email, password })
-    },
-    []
-  )
-
-  const handleSignUp = useCallback(
-    async (email: string, password: string) => {
-      return supabase.auth.signUp({ email, password })
-    },
-    []
-  )
-
-  const handleSignOut = useCallback(async () => {
-    return supabase.auth.signOut()
-  }, [])
-
-  return {
-    user,
-    session,
-    loading,
-    signIn: handleSignIn,
-    signUp: handleSignUp,
-    signOut: handleSignOut,
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    queryClient.setQueryData(AUTH_QUERY_KEY, null)
   }
+
+  return { user: user ?? null, loading: isLoading, signOut }
 }

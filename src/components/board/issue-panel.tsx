@@ -116,7 +116,7 @@ export function IssuePanel({
   const handleColumnChange = useCallback(
     async (newValue: string) => {
       if (!issue) return
-      const newColumnId = newValue === "backlog" ? null : newValue
+      const newColumnId = newValue
       if (newColumnId === issue.column_id) return
       try {
         const updated = await moveIssue(issue.id, newColumnId, 999)
@@ -166,7 +166,7 @@ export function IssuePanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-[480px] overflow-y-auto flex flex-col"
+        className="flex w-full flex-col overflow-y-auto sm:max-w-[480px]"
         showCloseButton
       >
         <SheetHeader className="pb-0">
@@ -176,10 +176,13 @@ export function IssuePanel({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 flex flex-col gap-5 px-4 pb-2">
+        <div className="flex flex-1 flex-col gap-5 px-4 pb-2">
           {/* Title */}
           <div className="space-y-1.5">
-            <Label htmlFor="issue-title" className="text-xs text-muted-foreground">
+            <Label
+              htmlFor="issue-title"
+              className="text-xs text-muted-foreground"
+            >
               Title
             </Label>
             <Input
@@ -192,7 +195,7 @@ export function IssuePanel({
                   e.currentTarget.blur()
                 }
               }}
-              className="text-base font-medium h-9"
+              className="h-9 text-base font-medium"
               placeholder="Issue title"
             />
           </div>
@@ -253,15 +256,11 @@ export function IssuePanel({
           {/* Column */}
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Column</Label>
-            <Select
-              value={issue.column_id ?? "backlog"}
-              onValueChange={handleColumnChange}
-            >
+            <Select value={issue.column_id} onValueChange={handleColumnChange}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="backlog">Backlog</SelectItem>
                 {columns.map((col) => (
                   <SelectItem key={col.id} value={col.id}>
                     {col.name}
@@ -277,10 +276,7 @@ export function IssuePanel({
             <Select
               value={issue.assignee_email ?? "unassigned"}
               onValueChange={(val) =>
-                saveField(
-                  "assignee_email",
-                  val === "unassigned" ? null : val
-                )
+                saveField("assignee_email", val === "unassigned" ? null : val)
               }
             >
               <SelectTrigger className="w-full">
@@ -304,14 +300,26 @@ export function IssuePanel({
 
           {/* Due date */}
           <div className="space-y-1.5">
-            <Label htmlFor="issue-due-date" className="text-xs text-muted-foreground">
+            <Label
+              htmlFor="issue-due-date"
+              className="text-xs text-muted-foreground"
+            >
               Due date
             </Label>
             <DatePicker
-              value={issue.due_date ? new Date(issue.due_date + "T00:00:00") : undefined}
-              onChange={(date) => saveField("due_date", date ? date.toISOString().slice(0, 10) : null)}
+              value={
+                issue.due_date
+                  ? new Date(issue.due_date + "T00:00:00")
+                  : undefined
+              }
+              onChange={(date) =>
+                saveField(
+                  "due_date",
+                  date ? date.toISOString().slice(0, 10) : null
+                )
+              }
               className="w-full"
-              />
+            />
           </div>
 
           {/* Labels */}
@@ -324,11 +332,11 @@ export function IssuePanel({
                     key={label}
                     type="button"
                     onClick={() => handleRemoveLabel(label)}
-                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
+                    className="group inline-flex items-center gap-1 rounded-full border border-border/40 bg-muted px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                     title={`Remove "${label}"`}
                   >
                     {label}
-                    <X className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <X className="size-3 opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                 ))}
               </div>
@@ -345,7 +353,7 @@ export function IssuePanel({
                   }
                 }}
                 placeholder="Add label…"
-                className="h-7 text-xs flex-1"
+                className="h-7 flex-1 text-xs"
               />
               <Button
                 type="button"
@@ -380,10 +388,7 @@ export function IssuePanel({
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  onClick={handleDelete}
-                >
+                <AlertDialogAction variant="destructive" onClick={handleDelete}>
                   Delete
                 </AlertDialogAction>
               </AlertDialogFooter>

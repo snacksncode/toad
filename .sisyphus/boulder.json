@@ -1,9 +1,8 @@
 {
-  "active_plan": "/Users/snacksncode/code/personal/toad/.sisyphus/plans/toad-kanban.md",
-  "started_at": "2026-03-11T20:24:16.010Z",
-  "session_ids": [
-    "ses_3216db2b8ffeC6N5OsuSfKwqGu"
-  ],
-  "plan_name": "toad-kanban",
-  "agent": "atlas"
+  "active_plan": "/Users/snacksncode/code/personal/toad/.sisyphus/plans/toad-cleanup-mobile.md",
+  "started_at": "2026-03-15T15:23:33.853Z",
+  "session_ids": ["ses_312be2de4ffed5Qg7mRBLoazEW"],
+  "plan_name": "toad-cleanup-mobile",
+  "agent": "atlas",
+  "worktree_path": "/Users/snacksncode/code/personal/toad"
 }

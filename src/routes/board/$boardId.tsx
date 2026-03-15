@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { boardKeys } from "@/lib/query-keys"
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { supabase } from "@/lib/supabase"
 import { AppSidebar } from "@/components/layout/sidebar"
 import { AppHeader } from "@/components/layout/header"
@@ -10,7 +9,7 @@ import { Column } from "@/components/board/column"
 import { AddColumnButton } from "@/components/board/add-column-button"
 import { BoardSettings } from "@/components/board/board-settings"
 import { IssuePanel } from "@/components/board/issue-panel"
-import { Backlog, BacklogCardOverlay } from "@/components/board/backlog"
+
 import { FilterBar } from "@/components/board/filter-bar"
 import type { FilterState } from "@/components/board/filter-bar"
 import { getProjectMembers } from "@/lib/queries/members"
@@ -23,14 +22,26 @@ import {
   reorderColumns,
   deleteColumn,
 } from "@/lib/queries/columns"
-import { getProjectIssues, moveIssue, reorderIssues, reorderBacklog } from "@/lib/queries/issues"
+import {
+  getProjectIssues,
+  moveIssue,
+  reorderIssues,
+} from "@/lib/queries/issues"
 import { updateProject, deleteProject } from "@/lib/queries/projects"
 import type { Column as ColumnType, Issue } from "@/lib/database.types"
 import { toast } from "sonner"
 import { Loader2, Columns3, Settings } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { DragDropProvider, DragOverlay } from "@dnd-kit/react"
-import { PointerSensor, PointerActivationConstraints } from "@dnd-kit/dom"
+import {
+  PointerSensor,
+  PointerActivationConstraints,
+  KeyboardSensor,
+  Accessibility,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from "@dnd-kit/dom"
 import { move } from "@dnd-kit/helpers"
 import { IssueCardOverlay } from "@/components/board/issue-card"
 
@@ -45,6 +56,10 @@ export const Route = createFileRoute("/board/$boardId")({
   },
   component: BoardPage,
 })
+
+const EMPTY_COLUMNS: ColumnType[] = []
+const EMPTY_ISSUES: Issue[] = []
+const EMPTY_MEMBERS: Awaited<ReturnType<typeof getProjectMembers>> = []
 
 function BoardPage() {
   const { boardId } = Route.useParams()
@@ -64,9 +79,8 @@ function BoardPage() {
   const [isDragging, setIsDragging] = useState(false)
 
   // --- React Query: data fetching ---
-
   const { data: boardName = "" } = useQuery({
-    queryKey: boardKeys.detail(boardId),
+    queryKey: ["boards", boardId, "name"],
     queryFn: async () => {
       const { data } = await supabase
         .from("projects")
@@ -77,80 +91,51 @@ function BoardPage() {
     },
   })
 
-  const { data: queryColumns = [] } = useQuery({
-    queryKey: boardKeys.columns(boardId),
-    queryFn: () => getProjectColumns(boardId),
-  })
+  const { data: columns = EMPTY_COLUMNS, isLoading: columnsLoading } = useQuery(
+    {
+      queryKey: ["boards", boardId, "columns"],
+      queryFn: () => getProjectColumns(boardId),
+    }
+  )
 
-  const { data: issues = [], isLoading: issuesLoading } = useQuery({
-    queryKey: boardKeys.issues(boardId),
+  const { data: issues = EMPTY_ISSUES, isLoading: issuesLoading } = useQuery({
+    queryKey: ["boards", boardId, "issues"],
     queryFn: () => getProjectIssues(boardId),
   })
 
-  const { data: members = [] } = useQuery({
-    queryKey: boardKeys.members(boardId),
+  const { data: members = EMPTY_MEMBERS } = useQuery({
+    queryKey: ["boards", boardId, "members"],
     queryFn: () => getProjectMembers(boardId),
   })
 
-  const loading = issuesLoading
+  const loading = columnsLoading || issuesLoading
 
-  // --- DnD state ---
-
-  // Local columns state for DnD column reorder (syncs from query when not dragging)
-  const [columns, setColumns] = useState<ColumnType[]>([])
-
-  // Sync columns from query when not dragging — with equality check to avoid loops
-  const prevColumnsRef = useRef<ColumnType[]>([])
-  useEffect(() => {
-    if (isDragging) return
-    // Only sync if data actually changed (shallow compare length + ids)
-    const hasChanged =
-      queryColumns.length !== prevColumnsRef.current.length ||
-      queryColumns.some((c, i) => c.id !== prevColumnsRef.current[i]?.id)
-    if (hasChanged) {
-      prevColumnsRef.current = queryColumns
-      setColumns(queryColumns)
-    }
-  }, [queryColumns, isDragging])
-
+  // Local columns state for DnD column reorder
+  const [localColumns, setLocalColumns] = useState<ColumnType[]>(columns)
 
   // DnD state: columnId → issueId[] for visual ordering during drag
   const [items, setItems] = useState<Record<string, string[]>>({})
-  const itemsSnapshotRef = useRef<Record<string, string[]>>({})
   const itemsRef = useRef<Record<string, string[]>>({})
+  const itemsSnapshotRef = useRef<Record<string, string[]>>({})
   const columnsSnapshotRef = useRef<ColumnType[]>([])
-  const columnsRef = useRef<ColumnType[]>([])
-
-  // Track active dragged issue for DragOverlay
-  const [activeIssueId, setActiveIssueId] = useState<string | null>(null)
-
-  // Keep itemsRef in sync for use in async handlers
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    itemsRef.current = items
-  }, [items])
-
-  // Keep columnsRef in sync for use in async handlers
-  useEffect(() => {
-    columnsRef.current = columns
+    if (isDragging) return
+    setLocalColumns(columns)
   }, [columns])
 
-  // Sync items from issues + columns (including backlog)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    if (isDragging) return
     const map: Record<string, string[]> = {}
-    // Backlog: issues with no column
-    map.backlog = issues
-      .filter((i) => i.column_id === null)
-      .sort((a, b) => a.position - b.position)
-      .map((i) => i.id)
-    // Columns
-    for (const col of columns) {
+    for (const col of localColumns) {
       map[col.id] = issues
         .filter((i) => i.column_id === col.id)
         .sort((a, b) => a.position - b.position)
         .map((i) => i.id)
     }
     setItems(map)
-  }, [issues, columns])
+  }, [issues, localColumns])
 
   // --- Mutation handlers ---
 
@@ -158,7 +143,9 @@ function BoardPage() {
     async (name: string) => {
       try {
         await createColumn(boardId, name)
-        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
+        queryClient.invalidateQueries({
+          queryKey: ["boards", boardId, "columns"],
+        })
       } catch {
         toast.error("Failed to create column")
       }
@@ -170,7 +157,9 @@ function BoardPage() {
     async (columnId: string, name: string) => {
       try {
         await updateColumn(columnId, { name })
-        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
+        queryClient.invalidateQueries({
+          queryKey: ["boards", boardId, "columns"],
+        })
       } catch {
         toast.error("Failed to rename column")
       }
@@ -182,7 +171,9 @@ function BoardPage() {
     async (columnId: string) => {
       try {
         await deleteColumn(columnId)
-        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
+        queryClient.invalidateQueries({
+          queryKey: ["boards", boardId, "columns"],
+        })
       } catch (err: unknown) {
         const pgError = err as { code?: string }
         if (pgError.code === "23503") {
@@ -199,40 +190,36 @@ function BoardPage() {
 
   const handleMoveColumn = useCallback(
     async (columnId: string, direction: "left" | "right") => {
-      const idx = columns.findIndex((c) => c.id === columnId)
+      const idx = localColumns.findIndex((c) => c.id === columnId)
       if (idx === -1) return
 
       const swapIdx = direction === "left" ? idx - 1 : idx + 1
-      if (swapIdx < 0 || swapIdx >= columns.length) return
+      if (swapIdx < 0 || swapIdx >= localColumns.length) return
 
-      const newOrder = [...columns]
+      const newOrder = [...localColumns]
       const temp = newOrder[idx]
       newOrder[idx] = newOrder[swapIdx]
       newOrder[swapIdx] = temp
 
       // Optimistic update
-      setColumns(newOrder)
+      setLocalColumns(newOrder)
 
       try {
         await reorderColumns(
           boardId,
           newOrder.map((c) => c.id)
         )
-        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
+        queryClient.invalidateQueries({
+          queryKey: ["boards", boardId, "columns"],
+        })
       } catch {
-        // Revert on failure
-        queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
+        queryClient.invalidateQueries({
+          queryKey: ["boards", boardId, "columns"],
+        })
         toast.error("Failed to reorder columns")
       }
     },
-    [columns, boardId, queryClient]
-  )
-
-  const handleIssueCreated = useCallback(
-    async (_issue: Issue) => {
-      queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
-    },
-    [boardId, queryClient]
+    [localColumns, boardId, queryClient]
   )
 
   // --- Computed values ---
@@ -252,8 +239,7 @@ function BoardPage() {
           return false
         if (filters.priority && issue.priority !== filters.priority)
           return false
-        if (filters.label && !issue.labels.includes(filters.label))
-          return false
+        if (filters.label && !issue.labels.includes(filters.label)) return false
         return true
       }),
     [issues, filters]
@@ -286,33 +272,27 @@ function BoardPage() {
     [items, filteredIssueIds, issueMap]
   )
 
-  // Get ordered backlog issues (driven by items state)
-  const backlogIssues = useMemo((): Issue[] => {
-    const ids = items.backlog ?? []
-    return ids
-      .map((id) => issueMap.get(id))
-      .filter((issue): issue is Issue => issue !== undefined)
-  }, [items, issueMap])
-
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <AppSidebar activeBoardId={boardId} />
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader showSidebarTrigger />
-          <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b shrink-0">
+          <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2.5 sm:gap-3 sm:px-6 sm:py-4">
             <Columns3 className="size-5 text-muted-foreground" />
-            <h1 className="text-lg sm:text-xl font-semibold truncate">
+            <h1 className="truncate text-lg font-semibold sm:text-xl">
               {boardName || "Loading…"}
             </h1>
-            <span className="text-xs text-muted-foreground tabular-nums hidden sm:inline">
-              {columns.length} {columns.length === 1 ? "column" : "columns"}
+            <span className="hidden text-xs text-muted-foreground tabular-nums sm:inline">
+              {localColumns.length}{" "}
+              {localColumns.length === 1 ? "column" : "columns"}
             </span>
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={() => setSettingsOpen(true)}
               title="Board settings"
+              aria-label="Board settings"
               className="ml-auto"
             >
               <Settings className="size-4" />
@@ -328,9 +308,9 @@ function BoardPage() {
               filteredCount={filteredIssues.length}
             />
           )}
-          <main className="flex-1 overflow-hidden flex flex-col">
+          <main className="flex flex-1 flex-col overflow-hidden">
             {loading ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex h-full items-center justify-center">
                 <Loader2 className="size-6 animate-spin text-muted-foreground" />
               </div>
             ) : (
@@ -340,96 +320,128 @@ function BoardPage() {
                     activationConstraints: (event) => {
                       if (event.pointerType === "touch") {
                         return [
-                          new PointerActivationConstraints.Delay({ value: 200, tolerance: 5 }),
+                          new PointerActivationConstraints.Delay({
+                            value: 200,
+                            tolerance: 5,
+                          }),
                         ]
                       }
-                      // Mouse: small distance to prevent accidental drags on click
                       return [
                         new PointerActivationConstraints.Distance({ value: 5 }),
                       ]
                     },
                   }),
+                  KeyboardSensor,
                 ]}
-                onDragStart={(event) => {
+                plugins={(defaults) => [
+                  ...defaults,
+                  Accessibility.configure({
+                    announcements: {
+                      dragstart(event: Parameters<DragStartEvent>[0]) {
+                        const source = event.operation.source
+                        if (!source) return
+                        if (source.type === "column") return `Picked up column`
+                        const issue = issueMap.get(String(source.id))
+                        return issue
+                          ? `Picked up "${issue.title}"`
+                          : `Picked up card`
+                      },
+                      dragover(event: Parameters<DragOverEvent>[0]) {
+                        const { source, target } = event.operation
+                        if (!source || !target) return
+                        if (source.type === "column") return undefined
+                        const issue = issueMap.get(String(source.id))
+                        const colName = localColumns.find(
+                          (c) => c.id === String(target.id)
+                        )?.name
+                        if (issue && colName)
+                          return `"${issue.title}" over column "${colName}"`
+                        return undefined
+                      },
+                      dragend(event: Parameters<DragEndEvent>[0]) {
+                        const source = event.operation.source
+                        if (!source) return
+                        if (event.canceled) return `Drag cancelled`
+                        if (source.type === "column") return `Column reordered`
+                        const issue = issueMap.get(String(source.id))
+                        return issue
+                          ? `Dropped "${issue.title}"`
+                          : `Card dropped`
+                      },
+                    },
+                  }),
+                ]}
+                onDragStart={() => {
                   setIsDragging(true)
-
-                  // Snapshot for cancel revert
-                  const snapshot: Record<string, string[]> = {}
-                  for (const [k, v] of Object.entries(items)) {
-                    snapshot[k] = [...v]
-                  }
-                  itemsSnapshotRef.current = snapshot
-                  columnsSnapshotRef.current = [...columns]
-
-                  // Track dragged issue for DragOverlay
-                  const source = event.operation.source
-                  if (source?.type === "item") {
-                    setActiveIssueId(String(source.id))
-                  }
+                  queryClient.cancelQueries({
+                    queryKey: ["boards", boardId, "issues"],
+                  })
+                  itemsSnapshotRef.current = structuredClone(items)
+                  columnsSnapshotRef.current = [...localColumns]
                 }}
                 onDragOver={(event) => {
-                  const source = event.operation.source
-                  if (!source) return
-
-                  if (source.type === "column") {
-                    const target = event.operation.target
-                    if (!target || target.type !== "column" || source.id === target.id) return
-
-                    setColumns((prev) => {
-                      const sourceIdx = prev.findIndex((c) => c.id === String(source.id))
-                      const targetIdx = prev.findIndex((c) => c.id === String(target.id))
-                      if (sourceIdx === -1 || targetIdx === -1 || sourceIdx === targetIdx) return prev
-                      const next = [...prev]
-                      const [moved] = next.splice(sourceIdx, 1)
-                      next.splice(targetIdx, 0, moved)
-                      return next
-                    })
-                  } else {
-                    // Track position in ref only — don't trigger React re-render during drag.
-                    // Re-rendering moves the card between Column components (unmount/remount),
-                    // which causes the Feedback plugin to recalculate and the overlay to jump.
-                    itemsRef.current = move(itemsRef.current, event)
-                  }
-
-                  // Prevent OptimisticSortingPlugin from also manipulating the DOM,
-                  // which conflicts with React's state-driven rendering
-                  if ("preventDefault" in event) event.preventDefault()
+                  const { source } = event.operation
+                  if (source?.type === "column") return
+                  setItems((currentItems) => {
+                    const next = move(currentItems, event)
+                    itemsRef.current = next
+                    return next
+                  })
                 }}
                 onDragEnd={async (event) => {
-                  // Always clear overlay
-                  setActiveIssueId(null)
-                  setIsDragging(false)
-
-                  if (event.canceled) {
-                    setColumns(columnsSnapshotRef.current)
-                    setItems(itemsSnapshotRef.current)
+                  const { source } = event.operation
+                  if (!source) {
+                    setIsDragging(false)
                     return
                   }
 
-                  // Apply tracked position to state immediately so the card
-                  // appears in its new column before the async persist completes
-                  setItems({ ...itemsRef.current })
+                  if (event.canceled) {
+                    if (source.type === "item")
+                      setItems(itemsSnapshotRef.current)
+                    if (source.type === "column")
+                      setLocalColumns(columnsSnapshotRef.current)
+                    setIsDragging(false)
+                    return
+                  }
 
-                  const source = event.operation.source
-                  if (!source) return
-
-
-                  // Column drag — persist reorder
                   if (source.type === "column") {
-                    const currentColumns = columnsRef.current
-                    try {
-                      await reorderColumns(boardId, currentColumns.map((c) => c.id))
-                    } catch {
-                      queryClient.invalidateQueries({ queryKey: boardKeys.columns(boardId) })
-                      toast.error("Failed to reorder columns")
+                    const target = event.operation.target
+                    if (target && target.type === "column") {
+                      const sourceIdx = localColumns.findIndex(
+                        (c) => c.id === String(source.id)
+                      )
+                      const targetIdx = localColumns.findIndex(
+                        (c) => c.id === String(target.id)
+                      )
+                      if (
+                        sourceIdx !== -1 &&
+                        targetIdx !== -1 &&
+                        sourceIdx !== targetIdx
+                      ) {
+                        const newColumns = [...localColumns]
+                        const [moved] = newColumns.splice(sourceIdx, 1)
+                        newColumns.splice(targetIdx, 0, moved)
+                        setLocalColumns(newColumns)
+                        try {
+                          await reorderColumns(
+                            boardId,
+                            newColumns.map((c) => c.id)
+                          )
+                        } catch {
+                          queryClient.invalidateQueries({
+                            queryKey: ["boards", boardId, "columns"],
+                          })
+                          toast.error("Failed to reorder columns")
+                        }
+                      }
                     }
+                    setIsDragging(false)
                     return
                   }
 
                   const issueId = String(source.id)
                   const currentItems = itemsRef.current
 
-                  // Find which group (backlog or column) the issue landed in
                   let newGroupKey: string | null = null
                   let newPosition = 0
                   for (const [key, ids] of Object.entries(currentItems)) {
@@ -441,73 +453,70 @@ function BoardPage() {
                     }
                   }
 
-                  if (!newGroupKey) return
+                  if (!newGroupKey || !issueMap.get(issueId)) {
+                    setIsDragging(false)
+                    return
+                  }
 
-                  const issue = issueMap.get(issueId)
-                  if (!issue) return
-
-                  // Original group: column_id or "backlog"
-                  const originalGroupKey = issue.column_id ?? "backlog"
-                  // New column_id: null if backlog, otherwise the column UUID
-                  const newColumnId = newGroupKey === "backlog" ? null : newGroupKey
+                  const issue = issueMap.get(issueId)!
+                  const originalGroupKey = issue.column_id
+                  const newColumnId = newGroupKey
 
                   try {
                     if (originalGroupKey !== newGroupKey) {
-                      // Cross-group move (column↔column, column↔backlog, backlog↔column)
                       await moveIssue(issueId, newColumnId, newPosition)
-
-                      // Reorder target group
                       const targetIds = currentItems[newGroupKey] ?? []
-                      if (targetIds.length > 0) {
-                        if (newGroupKey === "backlog") {
-                          await reorderBacklog(boardId, targetIds)
-                        } else {
-                          await reorderIssues(newGroupKey, targetIds)
-                        }
-                      }
-
-                      // Reorder source group
+                      if (targetIds.length > 0)
+                        await reorderIssues(newGroupKey, targetIds)
                       const origIds = currentItems[originalGroupKey] ?? []
-                      if (origIds.length > 0) {
-                        if (originalGroupKey === "backlog") {
-                          await reorderBacklog(boardId, origIds)
-                        } else {
-                          await reorderIssues(originalGroupKey, origIds)
-                        }
-                      }
+                      if (origIds.length > 0)
+                        await reorderIssues(originalGroupKey, origIds)
                     } else {
-                      // Same-group reorder
                       const ids = currentItems[newGroupKey] ?? []
-                      if (newGroupKey === "backlog") {
-                        await reorderBacklog(boardId, ids)
-                      } else {
-                        await reorderIssues(newGroupKey, ids)
-                      }
+                      await reorderIssues(newGroupKey, ids)
                     }
-                    // Refetch to sync with DB
-                    queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
+                    queryClient.setQueryData(
+                      ["boards", boardId, "issues"],
+                      (old: Issue[] | undefined) => {
+                        if (!old) return old
+                        return old.map((iss) => {
+                          for (const [key, ids] of Object.entries(
+                            currentItems
+                          )) {
+                            const idx = ids.indexOf(iss.id)
+                            if (idx !== -1) {
+                              return { ...iss, column_id: key, position: idx }
+                            }
+                          }
+                          return iss
+                        })
+                      }
+                    )
+                    queryClient.invalidateQueries({
+                      queryKey: ["boards", boardId, "issues"],
+                    })
                   } catch {
                     setItems(itemsSnapshotRef.current)
                     toast.error("Failed to move issue")
                   }
+                  setIsDragging(false)
                 }}
               >
-                <Backlog
-                  issues={backlogIssues}
-                  projectId={boardId}
-                  onIssueCreated={handleIssueCreated}
-                  onIssueClick={(issue) => setSelectedIssue(issue)}
-                />
-                <div className={cn("flex-1 overflow-x-auto overflow-y-hidden", !isDragging && "snap-x snap-mandatory md:snap-none")}>
-                  <div className="flex gap-3 md:gap-5 px-4 md:px-6 py-3 md:py-6 h-full items-start">
-                    {columns.map((col, idx) => (
+                <div
+                  className={cn(
+                    "flex-1 overflow-x-auto overflow-y-hidden",
+                    !isDragging && "snap-x snap-mandatory md:snap-none"
+                  )}
+                >
+                  <div className="flex h-full items-start gap-3 px-4 py-3 md:gap-5 md:px-6 md:py-6">
+                    {localColumns.map((col, idx) => (
                       <Column
                         key={col.id}
                         column={col}
                         index={idx}
                         issues={getColumnIssues(col.id)}
                         isFirst={idx === 0}
-                        isLast={idx === columns.length - 1}
+                        isLast={idx === localColumns.length - 1}
                         onRename={(name) => handleRenameColumn(col.id, name)}
                         onDelete={() => handleDeleteColumn(col.id)}
                         onMoveLeft={() => handleMoveColumn(col.id, "left")}
@@ -518,12 +527,46 @@ function BoardPage() {
                     <AddColumnButton onAdd={handleCreateColumn} />
                   </div>
                 </div>
-                <DragOverlay>
-                  {activeIssueId && issueMap.get(activeIssueId) ? (
-                    issueMap.get(activeIssueId)!.column_id === null
-                      ? <BacklogCardOverlay issue={issueMap.get(activeIssueId)!} />
-                      : <IssueCardOverlay issue={issueMap.get(activeIssueId)!} />
-                  ) : null}
+                <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
+                  {(source) => {
+                    if (source.type === "column") {
+                      const col = localColumns.find(
+                        (c) => c.id === String(source.id)
+                      )
+                      if (!col) return null
+                      const colIssues = getColumnIssues(col.id)
+                      return (
+                        <div className="w-80 rounded-xl border border-border/50 bg-muted/80 shadow-xl backdrop-blur-sm">
+                          <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-3">
+                            <span className="truncate text-sm font-semibold">
+                              {col.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {colIssues.length}
+                            </span>
+                          </div>
+                          <div className="max-h-[200px] overflow-hidden px-2.5 py-2.5">
+                            {colIssues.slice(0, 3).map((issue) => (
+                              <div
+                                key={issue.id}
+                                className="mb-2 truncate rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm opacity-70"
+                              >
+                                {issue.title}
+                              </div>
+                            ))}
+                            {colIssues.length > 3 && (
+                              <p className="text-center text-xs text-muted-foreground">
+                                +{colIssues.length - 3} more
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }
+                    const issue = issueMap.get(String(source.id))
+                    if (!issue) return null
+                    return <IssueCardOverlay issue={issue} />
+                  }}
                 </DragOverlay>
               </DragDropProvider>
             )}
@@ -536,7 +579,9 @@ function BoardPage() {
             currentUserId={user.id}
             onRename={async (newName) => {
               await updateProject(boardId, newName)
-              queryClient.invalidateQueries({ queryKey: boardKeys.detail(boardId) })
+              queryClient.invalidateQueries({
+                queryKey: ["boards", boardId, "name"],
+              })
               setSettingsOpen(false)
             }}
             onDelete={async () => {
@@ -550,14 +595,20 @@ function BoardPage() {
         <IssuePanel
           issue={selectedIssue}
           projectId={boardId}
-          columns={columns}
+          columns={localColumns}
           open={selectedIssue !== null}
-          onOpenChange={(open) => { if (!open) setSelectedIssue(null) }}
+          onOpenChange={(open) => {
+            if (!open) setSelectedIssue(null)
+          }}
           onIssueUpdated={() => {
-            queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
+            queryClient.invalidateQueries({
+              queryKey: ["boards", boardId, "issues"],
+            })
           }}
           onIssueDeleted={() => {
-            queryClient.invalidateQueries({ queryKey: boardKeys.issues(boardId) })
+            queryClient.invalidateQueries({
+              queryKey: ["boards", boardId, "issues"],
+            })
             setSelectedIssue(null)
           }}
         />

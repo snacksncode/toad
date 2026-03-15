@@ -16,7 +16,11 @@ const config = defineConfig({
     }),
     tailwindcss(),
     tanstackStart({ spa: { enabled: true } }),
-    viteReact(),
+    viteReact({
+      babel: {
+        plugins: [["babel-plugin-react-compiler", {}]],
+      },
+    }),
   ],
 })
 

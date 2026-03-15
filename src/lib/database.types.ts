@@ -60,7 +60,7 @@ export interface Database {
           project_id: string
           user_id: string | null
           invited_email: string
-          role: 'owner' | 'member'
+          role: "owner" | "member"
           created_at: string
         }
         Insert: {
@@ -68,7 +68,7 @@ export interface Database {
           project_id: string
           user_id?: string | null
           invited_email: string
-          role?: 'owner' | 'member'
+          role?: "owner" | "member"
           created_at?: string
         }
         Update: {
@@ -76,7 +76,7 @@ export interface Database {
           project_id?: string
           user_id?: string | null
           invited_email?: string
-          role?: 'owner' | 'member'
+          role?: "owner" | "member"
           created_at?: string
         }
         Relationships: []
@@ -109,10 +109,10 @@ export interface Database {
         Row: {
           id: string
           project_id: string
-          column_id: string | null
+          column_id: string
           title: string
           description: string
-          priority: 'low' | 'medium' | 'high'
+          priority: "low" | "medium" | "high"
           labels: string[]
           assignee_email: string | null
           due_date: string | null
@@ -123,10 +123,10 @@ export interface Database {
         Insert: {
           id?: string
           project_id: string
-          column_id?: string | null
+          column_id: string
           title: string
           description?: string
-          priority?: 'low' | 'medium' | 'high'
+          priority?: "low" | "medium" | "high"
           labels?: string[]
           assignee_email?: string | null
           due_date?: string | null
@@ -137,10 +137,10 @@ export interface Database {
         Update: {
           id?: string
           project_id?: string
-          column_id?: string | null
+          column_id?: string | undefined
           title?: string
           description?: string
-          priority?: 'low' | 'medium' | 'high'
+          priority?: "low" | "medium" | "high"
           labels?: string[]
           assignee_email?: string | null
           due_date?: string | null
@@ -157,13 +157,12 @@ export interface Database {
 }
 
 // Convenience type aliases
-export type Profile = Database['public']['Tables']['profiles']['Row']
-export type Project = Database['public']['Tables']['projects']['Row']
-export type ProjectMember = Database['public']['Tables']['project_members']['Row']
-export type Column = Database['public']['Tables']['columns']['Row']
-export type Issue = Database['public']['Tables']['issues']['Row']
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"]
+export type Project = Database["public"]["Tables"]["projects"]["Row"]
+export type ProjectMember =
+  Database["public"]["Tables"]["project_members"]["Row"]
+export type Column = Database["public"]["Tables"]["columns"]["Row"]
+export type Issue = Database["public"]["Tables"]["issues"]["Row"]
 
-export type IssueInsert = Database['public']['Tables']['issues']['Insert']
-export type IssueUpdate = Database['public']['Tables']['issues']['Update']
-export type ProjectInsert = Database['public']['Tables']['projects']['Insert']
-export type ColumnInsert = Database['public']['Tables']['columns']['Insert']
+export type IssueInsert = Database["public"]["Tables"]["issues"]["Insert"]
+export type IssueUpdate = Database["public"]["Tables"]["issues"]["Update"]

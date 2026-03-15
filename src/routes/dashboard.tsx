@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { projectKeys } from "@/lib/query-keys"
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
 import { supabase } from "@/lib/supabase"
 import { AppHeader } from "@/components/layout/header"
@@ -31,14 +30,14 @@ function DashboardPage() {
   const queryClient = useQueryClient()
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  // Simple React Query - stable key, enabled when user exists
   const { data: projects = [], isLoading } = useQuery({
-    queryKey: projectKeys.all,
+    queryKey: ["projects", "list"],
     queryFn: async () => {
       if (!user) return []
       return getUserProjects(user.id)
     },
     enabled: !!user,
-    staleTime: 1000 * 60,
   })
 
   async function handleCreateBoard(name: string) {
@@ -46,7 +45,7 @@ function DashboardPage() {
     try {
       const project = await createProject(name, user.id, user.email ?? "")
       toast.success("Board created!")
-      queryClient.invalidateQueries({ queryKey: projectKeys.all })
+      queryClient.invalidateQueries({ queryKey: ["projects"] })
       navigate({ to: "/board/$boardId", params: { boardId: project.id } })
     } catch {
       toast.error("Failed to create board")

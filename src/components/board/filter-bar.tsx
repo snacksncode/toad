@@ -96,14 +96,14 @@ export function FilterBar({
 
   if (isMobile) {
     return (
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b shrink-0">
+      <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2.5">
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
               <SlidersHorizontal className="size-3.5" />
               Filters
               {activeFilterCount > 0 && (
-                <span className="ml-0.5 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-medium leading-none min-w-4 h-4 px-1">
+                <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-none font-medium text-primary-foreground">
                   {activeFilterCount}
                 </span>
               )}
@@ -111,7 +111,7 @@ export function FilterBar({
           </SheetTrigger>
 
           {hasActiveFilter && (
-            <span className="text-xs text-muted-foreground tabular-nums ml-auto">
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {filteredCount} of {totalCount}
             </span>
           )}
@@ -123,14 +123,15 @@ export function FilterBar({
 
             <div className="flex flex-col gap-3 px-4">
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={filters.search}
                   onChange={(e) =>
                     onFiltersChange({ ...filters, search: e.target.value })
                   }
                   placeholder="Search issues…"
-                  className="h-9 w-full pl-8 text-sm"
+                  className="h-8 w-40 pl-7 text-xs sm:w-52"
+                  aria-label="Search issues"
                 />
               </div>
 
@@ -222,16 +223,16 @@ export function FilterBar({
   }
 
   return (
-    <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b shrink-0 overflow-x-auto">
+    <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b px-4 py-2.5 sm:px-6">
       <div className="relative">
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+        <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={filters.search}
           onChange={(e) =>
             onFiltersChange({ ...filters, search: e.target.value })
           }
           placeholder="Search issues…"
-          className="h-8 w-40 sm:w-52 pl-7 text-xs"
+          className="h-8 w-40 pl-7 text-xs sm:w-52"
         />
       </div>
 
@@ -244,7 +245,7 @@ export function FilterBar({
           })
         }
       >
-        <SelectTrigger size="sm" className="text-xs gap-1">
+        <SelectTrigger size="sm" className="gap-1 text-xs">
           <SelectValue placeholder="All assignees" />
         </SelectTrigger>
         <SelectContent>
@@ -266,7 +267,7 @@ export function FilterBar({
           })
         }
       >
-        <SelectTrigger size="sm" className="text-xs gap-1">
+        <SelectTrigger size="sm" className="gap-1 text-xs">
           <SelectValue placeholder="All priorities" />
         </SelectTrigger>
         <SelectContent>
@@ -286,7 +287,7 @@ export function FilterBar({
             onFiltersChange({ ...filters, label: v === ALL ? null : v })
           }
         >
-          <SelectTrigger size="sm" className="text-xs gap-1">
+          <SelectTrigger size="sm" className="gap-1 text-xs">
             <SelectValue placeholder="All labels" />
           </SelectTrigger>
           <SelectContent>
@@ -306,12 +307,12 @@ export function FilterBar({
             variant="ghost"
             size="sm"
             onClick={clearAll}
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
           >
             <X className="size-3" />
             Clear
           </Button>
-          <span className="text-xs text-muted-foreground tabular-nums ml-auto">
+          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
             {filteredCount} of {totalCount}
           </span>
         </>
