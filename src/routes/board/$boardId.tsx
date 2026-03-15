@@ -246,38 +246,7 @@ function BoardPage() {
               <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
                 {(source) => {
                   if (source.type === "column") {
-                    const col = localColumns.find(
-                      (c) => c.id === String(source.id)
-                    )
-                    if (!col) return null
-                    const colIssues = getColumnIssues(col.id)
-                    return (
-                      <div className="w-80 rounded-xl border border-border/50 bg-muted/80 shadow-xl backdrop-blur-sm">
-                        <div className="flex items-center gap-2 border-b border-border/30 px-3.5 py-3">
-                          <span className="truncate text-sm font-semibold">
-                            {col.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {colIssues.length}
-                          </span>
-                        </div>
-                        <div className="max-h-[200px] overflow-hidden px-2.5 py-2.5">
-                          {colIssues.slice(0, 3).map((issue) => (
-                            <div
-                              key={issue.id}
-                              className="mb-2 truncate rounded-lg border border-border/60 bg-background/50 px-3 py-2 text-sm opacity-70"
-                            >
-                              {issue.title}
-                            </div>
-                          ))}
-                          {colIssues.length > 3 && (
-                            <p className="text-center text-xs text-muted-foreground">
-                              +{colIssues.length - 3} more
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )
+                    return null
                   }
                   const issue = issueMap.get(String(source.id))
                   if (!issue) return null
