@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
-import { supabase } from "@/lib/supabase"
-import { queryClient } from "@/lib/query-client"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { toast } from "sonner"
+import { Kanban, Plus } from "lucide-react"
 import { projectQueries } from "@/lib/query-keys"
 import { AppHeader } from "@/components/layout/header"
 import { useAuth } from "@/hooks/use-auth"
@@ -11,27 +11,8 @@ import { CreateBoardDialog } from "@/components/create-board-dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { createProject } from "@/lib/queries/projects"
-import { toast } from "sonner"
-import { Plus, Kanban } from "lucide-react"
 
 export const Route = createFileRoute("/dashboard")({
-  beforeLoad: async () => {
-    const cachedUser = queryClient.getQueryData(["auth", "user"])
-    if (cachedUser) return
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) throw redirect({ to: "/login" })
-  },
-  loader: async () => {
-    const user = queryClient.getQueryData<{ id: string } | null>([
-      "auth",
-      "user",
-    ])
-    if (user) {
-      await queryClient.ensureQueryData(projectQueries.list(user.id))
-    }
-  },
   component: DashboardPage,
 })
 

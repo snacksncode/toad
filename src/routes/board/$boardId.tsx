@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react"
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
-import { supabase } from "@/lib/supabase"
-import { queryClient } from "@/lib/query-client"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { boardQueries } from "@/lib/query-keys"
 import { AppSidebar } from "@/components/layout/sidebar"
 import { AppHeader } from "@/components/layout/header"
@@ -36,21 +34,6 @@ import { MobileColumnSection } from "@/components/board/mobile-column-section"
 import { useIsMobile } from "@/hooks/use-mobile"
 
 export const Route = createFileRoute("/board/$boardId")({
-  beforeLoad: async () => {
-    const cachedUser = queryClient.getQueryData(["auth", "user"])
-    if (cachedUser) return
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) throw redirect({ to: "/login" })
-  },
-  loader: ({ params: { boardId } }) =>
-    Promise.all([
-      queryClient.ensureQueryData(boardQueries.name(boardId)),
-      queryClient.ensureQueryData(boardQueries.columns(boardId)),
-      queryClient.ensureQueryData(boardQueries.issues(boardId)),
-      queryClient.ensureQueryData(boardQueries.members(boardId)),
-    ]),
   component: BoardPage,
 })
 
@@ -69,10 +52,12 @@ function BoardPage() {
     label: null,
   })
 
-  const { data: boardName } = useSuspenseQuery(boardQueries.name(boardId))
-  const { data: columns } = useSuspenseQuery(boardQueries.columns(boardId))
-  const { data: issues } = useSuspenseQuery(boardQueries.issues(boardId))
-  const { data: members } = useSuspenseQuery(boardQueries.members(boardId))
+  const { data: boardName = "" } = useQuery(boardQueries.name(boardId))
+  const { data: columns = [], isLoading: isLoadingBoard } = useQuery(
+    boardQueries.columns(boardId)
+  )
+  const { data: issues = [] } = useQuery(boardQueries.issues(boardId))
+  const { data: members = [] } = useQuery(boardQueries.members(boardId))
 
   const filteredIssues = useMemo(
     () =>
@@ -126,6 +111,24 @@ function BoardPage() {
     localColumns,
     setLocalColumns,
   })
+
+  if (isLoadingBoard) {
+    return (
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar activeBoardId={boardId} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <AppHeader />
+            <main className="flex flex-1 items-center justify-center">
+              <div className="text-sm text-muted-foreground">
+                Loading board...
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+    )
+  }
 
   return (
     <SidebarProvider>
