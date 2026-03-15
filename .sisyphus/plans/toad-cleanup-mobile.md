@@ -497,7 +497,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES
   - Message: `refactor(types): env validation, error narrowing, typed saveField, parallel queries`
 
-- [ ] 8. Fix remaining useEffects (autoFocus, key prop, DnD deps)
+- [x] 8. Fix remaining useEffects (autoFocus, key prop, DnD deps)
 
   **What to do**:
   - `src/components/board/issue-panel.tsx:67-72`: remove title/description sync effect. Use `key={issue?.id}` on the `<IssuePanel>` call in $boardId.tsx. Initialize state from props directly.
@@ -534,7 +534,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES
   - Message: `refactor(effects): autoFocus, key prop pattern, fix DnD deps`
 
-- [ ] 9. Extract $boardId.tsx into custom hooks
+- [x] 9. Extract $boardId.tsx into custom hooks
 
   **What to do**:
   - Create `src/hooks/use-board-dnd.ts`: move `localColumns`, `items`, all refs, `isDragging`, both sync effects, `onDragStart`/`onDragOver`/`onDragEnd` handlers. Hook accepts `{ boardId, columns, issues, queryClient }`. Returns `{ localColumns, isDragging, items, getColumnIssues, dndHandlers }`.
@@ -575,7 +575,7 @@ Max Concurrent: 5 (Wave 1)
 
 ### PHASE 2: MOBILE LIST VIEW + DESKTOP IMPROVEMENTS
 
-- [ ] 10. Remove column DragOverlay (cards only)
+- [x] 10. Remove column DragOverlay (cards only)
 
   **What to do**:
   - In the DragOverlay function-child (currently in $boardId.tsx or board-drag-overlay after extraction), change the `source.type === "column"` branch to return `null` instead of rendering the column preview.
@@ -608,7 +608,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES (groups with Task 11)
   - Message: `fix(dnd): remove column DragOverlay, cards only`
 
-- [ ] 11. Mobile stacked list layout
+- [x] 11. Mobile stacked list layout
 
   **What to do**:
   - On mobile (< md breakpoint), replace horizontal scrolling column layout with vertical stacked sections:
@@ -679,7 +679,7 @@ Max Concurrent: 5 (Wave 1)
   **Commit**: YES
   - Message: `feat(mobile): stacked list layout with section headers`
 
-- [ ] 12. Desktop column inline add-issue buttons
+- [x] 12. Desktop column inline add-issue buttons
 
   **What to do**:
   - Add a "+" button at the bottom of each column for inline issue creation
@@ -725,7 +725,7 @@ Max Concurrent: 5 (Wave 1)
 
 ### PHASE 3: FINAL POLISH
 
-- [ ] 13. Final verification and smoke test
+- [x] 13. Final verification and smoke test
 
   **What to do**:
   - Run `tsc --noEmit` — zero errors
