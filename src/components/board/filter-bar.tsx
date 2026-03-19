@@ -28,7 +28,6 @@ export interface FilterState {
 
 interface FilterBarProps {
   issues: Issue[]
-  members?: unknown[]
   filters: FilterState
   onFiltersChange: (filters: FilterState) => void
   totalCount: number

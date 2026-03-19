@@ -2,56 +2,48 @@
   <img src="public/icon-sakura.svg" width="80" height="80" alt="Toad">
 </p>
 
-<h1 align="center">Toad</h1>
-
-<p align="center">
-  A fast, local-first kanban board that lives in your browser.
-  <br />
-  No accounts. No servers. No loading spinners. Just your tasks.
-</p>
+<h1 align="center">Toad: Personal Task Board</h1>
 
 ---
 
-## What is this?
-
-Toad is a kanban board that stores everything in your browser's IndexedDB. There's nothing to sign up for, no backend to deploy, and no data leaves your machine.
-
-Create boards, drag cards around, set due dates, mark things done — it all works instantly because there's zero network latency. Your data persists across sessions and browser restarts.
+Toad is a kanban board that runs in your browser. Your data is stored locally via IndexedDB. Shareable collaborative boards are in the works.
 
 ## Features
 
-- **Boards & Columns** — Create multiple boards, each with customizable columns
-- **Drag & Drop** — Reorder cards and columns with smooth DnD (desktop + mobile)
-- **Due Dates** — Set deadlines, see overdue items highlighted in red
-- **Completion** — Toggle cards as done with a single click
-- **Labels & Priority** — Organize with colored labels and priority levels
-- **Context Menus** — Right-click cards and columns for quick actions
-- **Themes** — 4 built-in themes (Sakura, Sunset, Nature, Vintage) with light/dark mode
-- **Themed Favicons** — Browser tab icon matches your selected theme
-- **Demo Board** — One-click demo to see everything in action
+- Multiple boards with customizable columns
+- Drag & drop for cards and columns (desktop + mobile)
+- Due dates with overdue highlighting
+- Priority levels (low / medium / high) and colored labels
+- Filter and search across cards
+- Right-click context menus for quick actions
+- 4 themes (Sakura, Sunset, Nature, Vintage) × light/dark mode
+- Demo board to kick the tires
 
-## Tech
+## Tech stack
 
-- [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) + [TanStack Query](https://tanstack.com/query)
-- [Dexie.js](https://dexie.org/) (IndexedDB wrapper)
-- [dnd-kit](https://dndkit.com/) for drag & drop
-- [shadcn/ui](https://ui.shadcn.com/) + [Tailwind CSS](https://tailwindcss.com/)
-- TypeScript, Vite
+| Layer     | What                                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Framework | [TanStack Start](https://tanstack.com/start) + [Router](https://tanstack.com/router) + [Query](https://tanstack.com/query) |
+| UI        | [shadcn/ui](https://ui.shadcn.com/) + [Tailwind CSS v4](https://tailwindcss.com/)                                          |
+| Storage   | [Dexie.js](https://dexie.org/) (IndexedDB)                                                                                 |
+| DnD       | [dnd-kit](https://dndkit.com/)                                                                                             |
+| Language  | TypeScript, React 19                                                                                                       |
+| Build     | Vite                                                                                                                       |
 
-## Getting Started
+## Getting started
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
-Open [localhost:3000](http://localhost:3000) and you're in.
+Opens on [localhost:3000](http://localhost:3000).
 
-## What's next?
+## Roadmap
 
-We're actively exploring making boards **shareable via UUID URLs** — so you could share a board link with anyone and they'd see (and edit) the same board. Think a lightweight, public-by-default kanban that Just Works without accounts.
+**Shareable boards** are next. Share a UUID link, anyone with it can view and edit. No accounts needed.
 
-This is still in exploration phase. If you have ideas, open an issue.
+Ideas welcome, open an issue.
 
 ## License
 

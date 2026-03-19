@@ -149,7 +149,6 @@ function BoardPage() {
           </div>
           <FilterBar
             issues={issues}
-            members={[]}
             filters={filters}
             onFiltersChange={setFilters}
             totalCount={issues.length}

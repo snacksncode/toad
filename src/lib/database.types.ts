@@ -27,12 +27,6 @@ export type Issue = {
   updated_at: string
 }
 
-export type Settings = {
-  id: number
-  theme: string
-  color_mode: "light" | "dark"
-}
-
 export type IssueInsert = Omit<
   Issue,
   | "id"
