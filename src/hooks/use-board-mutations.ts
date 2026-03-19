@@ -56,20 +56,11 @@ export function useBoardMutations({
         queryClient.invalidateQueries({
           queryKey: boardQueries.columns(boardId).queryKey,
         })
-      } catch (err: unknown) {
-        const isPostgresError = (e: unknown): e is { code: string } =>
-          typeof e === "object" &&
-          e !== null &&
-          "code" in e &&
-          typeof (e as any).code === "string"
-
-        if (isPostgresError(err) && err.code === "23503") {
-          toast.error(
-            "Cannot delete column with issues. Move or delete issues first."
-          )
-        } else {
-          toast.error("Failed to delete column")
-        }
+        queryClient.invalidateQueries({
+          queryKey: boardQueries.issues(boardId).queryKey,
+        })
+      } catch {
+        toast.error("Failed to delete column")
       }
     },
     [boardId, queryClient]
