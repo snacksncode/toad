@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
+import { useTheme } from "@/components/theme-provider"
 import {
   Sidebar,
   SidebarContent,
@@ -12,19 +13,21 @@ import {
 } from "@/components/ui/sidebar"
 import { Link } from "@tanstack/react-router"
 import { LayoutDashboard, Kanban, Plus } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
 import { projectQueries } from "@/lib/query-keys"
 
 interface AppSidebarProps {
   activeBoardId?: string
 }
 
-export function AppSidebar({ activeBoardId }: AppSidebarProps) {
-  const { user } = useAuth()
+const FAVICON_THEMES = new Set(["sakura", "sunset", "nature", "vintage"])
 
+export function AppSidebar({ activeBoardId }: AppSidebarProps) {
+  const { theme } = useTheme()
+  const iconPath = FAVICON_THEMES.has(theme)
+    ? `/icon-${theme}.svg`
+    : "/icon-sakura.svg"
   const { data: boards = [], isLoading: loading } = useQuery({
-    ...projectQueries.list(user?.id ?? ""),
-    enabled: !!user,
+    ...projectQueries.list(),
     select: (data) =>
       data
         .map(({ id, name }) => ({ id, name }))
@@ -34,8 +37,12 @@ export function AppSidebar({ activeBoardId }: AppSidebarProps) {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link to="/dashboard" className="text-lg font-bold">
-          🐸 Toad
+        <Link
+          to="/dashboard"
+          className="flex items-center gap-2 text-lg font-bold"
+        >
+          <img src={iconPath} alt="" className="size-5 rounded" />
+          Toad
         </Link>
       </SidebarHeader>
       <SidebarContent>
