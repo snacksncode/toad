@@ -29,17 +29,15 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Avatar } from "@/components/avatar"
-import { updateIssue, deleteIssue, moveIssue } from "@/lib/queries/issues"
-import type { Column, Issue, ProjectMember } from "@/lib/database.types"
+import { useIssueMutations } from "@/hooks/use-issue-mutations"
+import type { Column, Issue } from "@/lib/database.types"
 import { toast } from "sonner"
-import { Trash2, X, Plus } from "lucide-react"
+import { Trash2, X, Plus, CircleCheck, Circle } from "lucide-react"
 import { DatePicker } from "@/components/ui/date-picker"
 
 interface IssuePanelProps {
   issue: Issue | null
   columns: Column[]
-  members: ProjectMember[]
   open: boolean
   onOpenChange: (open: boolean) => void
   onIssueUpdated: (issue: Issue) => void
@@ -49,7 +47,6 @@ interface IssuePanelProps {
 export function IssuePanel({
   issue,
   columns,
-  members,
   open,
   onOpenChange,
   onIssueUpdated,
@@ -59,20 +56,22 @@ export function IssuePanel({
   const [description, setDescription] = useState(issue?.description ?? "")
   const [labelInput, setLabelInput] = useState("")
   const labelInputRef = useRef<HTMLInputElement>(null)
+  const issueMutations = useIssueMutations(issue?.project_id ?? "")
 
   const saveField = useCallback(
     async (field: string, value: unknown) => {
       if (!issue) return
       try {
-        const updated = await updateIssue(issue.id, {
-          [field]: value,
+        const updated = await issueMutations.update.mutateAsync({
+          id: issue.id,
+          updates: { [field]: value },
         })
         onIssueUpdated(updated)
       } catch {
         toast.error("Failed to save changes")
       }
     },
-    [issue, onIssueUpdated]
+    [issue, onIssueUpdated, issueMutations.update]
   )
 
   const handleTitleBlur = useCallback(() => {
@@ -95,27 +94,30 @@ export function IssuePanel({
   const handleColumnChange = useCallback(
     async (newValue: string) => {
       if (!issue) return
-      const newColumnId = newValue
-      if (newColumnId === issue.column_id) return
+      if (newValue === issue.column_id) return
       try {
-        const updated = await moveIssue(issue.id, newColumnId, 999)
+        const updated = await issueMutations.move.mutateAsync({
+          id: issue.id,
+          columnId: newValue,
+          position: 999,
+        })
         onIssueUpdated(updated)
       } catch {
         toast.error("Failed to move issue")
       }
     },
-    [issue, onIssueUpdated]
+    [issue, onIssueUpdated, issueMutations.move]
   )
 
   const handleDelete = useCallback(async () => {
     if (!issue) return
     try {
-      await deleteIssue(issue.id)
+      await issueMutations.remove.mutateAsync(issue.id)
       onIssueDeleted(issue.id)
     } catch {
       toast.error("Failed to delete issue")
     }
-  }, [issue, onIssueDeleted])
+  }, [issue, onIssueDeleted, issueMutations.remove])
 
   const handleAddLabel = useCallback(() => {
     if (!issue) return
@@ -156,6 +158,25 @@ export function IssuePanel({
         </SheetHeader>
 
         <div className="flex flex-1 flex-col gap-5 px-4 pb-2">
+          <Button
+            type="button"
+            variant={issue.completed ? "default" : "outline"}
+            size="sm"
+            className={
+              issue.completed
+                ? "mt-3 w-full gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                : "mt-3 w-full gap-2"
+            }
+            onClick={() => saveField("completed", !issue.completed)}
+          >
+            {issue.completed ? (
+              <CircleCheck className="size-4" />
+            ) : (
+              <Circle className="size-4" />
+            )}
+            {issue.completed ? "Completed" : "Mark as complete"}
+          </Button>
+
           {/* Title */}
           <div className="space-y-1.5">
             <Label
@@ -243,34 +264,6 @@ export function IssuePanel({
                 {columns.map((col) => (
                   <SelectItem key={col.id} value={col.id}>
                     {col.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Assignee */}
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Assignee</Label>
-            <Select
-              value={issue.assignee_email ?? "unassigned"}
-              onValueChange={(val) =>
-                saveField("assignee_email", val === "unassigned" ? null : val)
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">
-                  <span className="text-muted-foreground">Unassigned</span>
-                </SelectItem>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.invited_email}>
-                    <span className="flex items-center gap-2">
-                      <Avatar email={m.invited_email} size="sm" />
-                      <span className="truncate">{m.invited_email}</span>
-                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>

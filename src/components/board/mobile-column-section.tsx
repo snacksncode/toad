@@ -2,12 +2,10 @@ import { useState, useCallback } from "react"
 import { Plus, X } from "lucide-react"
 import { useSortable } from "@dnd-kit/react/sortable"
 import { CollisionPriority } from "@dnd-kit/abstract"
-import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { IssueCard } from "@/components/board/issue-card"
-import { createIssue } from "@/lib/queries/issues"
-import { boardQueries } from "@/lib/query-keys"
+import { useIssueMutations } from "@/hooks/use-issue-mutations"
 import type { Column as ColumnType, Issue } from "@/lib/database.types"
 
 interface MobileColumnSectionProps {
@@ -15,6 +13,7 @@ interface MobileColumnSectionProps {
   index: number
   issues: Issue[]
   boardId: string
+  allColumns: ColumnType[]
   onIssueClick?: (issue: Issue) => void
 }
 
@@ -23,14 +22,13 @@ export function MobileColumnSection({
   index,
   issues,
   boardId,
+  allColumns,
   onIssueClick,
 }: MobileColumnSectionProps) {
-  const qc = useQueryClient()
   const [isAdding, setIsAdding] = useState(false)
   const [title, setTitle] = useState("")
+  const { create: createIssueMutation } = useIssueMutations(boardId)
 
-  // useSortable registers this as a droppable container for cross-column card moves.
-  // We intentionally don't attach handleRef — columns are NOT draggable on mobile.
   const { ref } = useSortable({
     id: column.id,
     index,
@@ -41,22 +39,23 @@ export function MobileColumnSection({
     transition: { duration: 250, easing: "cubic-bezier(0.25, 1, 0.5, 1)" },
   })
 
-  const handleAddIssue = useCallback(async () => {
+  const handleAddIssue = useCallback(() => {
     const trimmed = title.trim()
     if (!trimmed) return
-    try {
-      await createIssue({
+    createIssueMutation.mutate(
+      {
         project_id: boardId,
         column_id: column.id,
         title: trimmed,
-      })
-      setTitle("")
-      setIsAdding(false)
-      qc.invalidateQueries({
-        queryKey: boardQueries.issues(boardId).queryKey,
-      })
-    } catch {}
-  }, [title, boardId, column.id, qc])
+      },
+      {
+        onSuccess: () => {
+          setTitle("")
+          setIsAdding(false)
+        },
+      }
+    )
+  }, [title, boardId, column.id, createIssueMutation])
 
   const handleCancel = useCallback(() => {
     setTitle("")
@@ -118,6 +117,7 @@ export function MobileColumnSection({
             issue={issue}
             index={idx}
             columnId={column.id}
+            allColumns={allColumns}
             onClick={() => onIssueClick?.(issue)}
           />
         ))}

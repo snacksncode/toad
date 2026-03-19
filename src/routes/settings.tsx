@@ -1,5 +1,4 @@
-import { createFileRoute, redirect, Link } from "@tanstack/react-router"
-import { supabase } from "@/lib/supabase"
+import { createFileRoute } from "@tanstack/react-router"
 import { AppHeader } from "@/components/layout/header"
 import { themes, type Theme } from "@/lib/themes"
 import { useTheme } from "@/components/theme-provider"
@@ -9,14 +8,6 @@ import { Check, ArrowLeft, Sun, Moon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/settings")({
-  beforeLoad: async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session) {
-      throw redirect({ to: "/login" })
-    }
-  },
   component: SettingsPage,
 })
 
@@ -55,14 +46,14 @@ function ThemeCard({
       {/* Mini UI preview */}
       <div className="px-3">
         <div
-          className="aspect-[5/3] rounded-lg overflow-hidden p-2.5 flex flex-col gap-1.5 ring-1 ring-inset ring-black/5 dark:ring-white/5"
+          className="flex aspect-[5/3] flex-col gap-1.5 overflow-hidden rounded-lg p-2.5 ring-1 ring-black/5 ring-inset dark:ring-white/5"
           style={{ background: vars.background }}
         >
           <div
-            className="h-2 w-3/4 rounded-full shrink-0"
+            className="h-2 w-3/4 shrink-0 rounded-full"
             style={{ background: vars.primary }}
           />
-          <div className="flex gap-1.5 flex-1 min-h-0">
+          <div className="flex min-h-0 flex-1 gap-1.5">
             <div
               className="flex-1 rounded"
               style={{ background: vars.secondary }}
@@ -72,13 +63,13 @@ function ThemeCard({
               style={{ background: vars.accent }}
             />
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex shrink-0 items-center gap-1">
             <div
               className="h-1.5 w-6 rounded-full"
               style={{ background: vars["muted-foreground"] }}
             />
             <div
-              className="size-1.5 rounded-full ml-auto"
+              className="ml-auto size-1.5 rounded-full"
               style={{ background: vars.destructive }}
             />
           </div>
@@ -88,19 +79,19 @@ function ThemeCard({
       {/* Name + swatches + active indicator */}
       <CardContent className="flex items-center gap-2 pt-0">
         <span className="text-sm font-medium">{theme.name}</span>
-        <div className="flex gap-1 ml-auto">
+        <div className="ml-auto flex gap-1">
           {[vars.background, vars.primary, vars.accent, vars.destructive].map(
             (color, i) => (
               <div
                 key={i}
-                className="size-3 rounded-full ring-1 ring-inset ring-black/10 dark:ring-white/10"
+                className="size-3 rounded-full ring-1 ring-black/10 ring-inset dark:ring-white/10"
                 style={{ background: color }}
               />
             )
           )}
         </div>
         {isActive && (
-          <Check className="size-4 text-primary shrink-0" strokeWidth={2.5} />
+          <Check className="size-4 shrink-0 text-primary" strokeWidth={2.5} />
         )}
       </CardContent>
     </Card>
@@ -116,25 +107,25 @@ function SettingsPage() {
   } = useTheme()
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <AppHeader />
-      <main className="flex-1 container mx-auto px-4 py-6 max-w-5xl">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+      <main className="container mx-auto max-w-5xl flex-1 px-4 py-6">
+        <button
+          onClick={() => window.history.back()}
+          className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
-          Back to Dashboard
-        </Link>
+          Back
+        </button>
 
-        <h1 className="text-2xl font-bold mb-1">Appearance</h1>
-        <p className="text-sm text-muted-foreground mb-8">
+        <h1 className="mb-1 text-2xl font-bold">Appearance</h1>
+        <p className="mb-8 text-sm text-muted-foreground">
           Customize how Toad looks and feels.
         </p>
 
         {/* Color mode section */}
         <section className="mb-10">
-          <h2 className="text-base font-semibold mb-3">Color Mode</h2>
+          <h2 className="mb-3 text-base font-semibold">Color Mode</h2>
           <div className="flex gap-2">
             <Button
               variant={colorMode === "light" ? "default" : "outline"}
@@ -159,11 +150,11 @@ function SettingsPage() {
 
         {/* Theme gallery */}
         <section>
-          <h2 className="text-base font-semibold mb-1">Theme</h2>
-          <p className="text-sm text-muted-foreground mb-4">
+          <h2 className="mb-1 text-base font-semibold">Theme</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
             Pick a color palette for your workspace.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {themes.map((t) => (
               <ThemeCard
                 key={t.id}

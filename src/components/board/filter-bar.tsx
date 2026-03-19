@@ -18,18 +18,17 @@ import {
 } from "@/components/ui/sheet"
 import { Search, X, SlidersHorizontal } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import type { Issue, ProjectMember } from "@/lib/database.types"
+import type { Issue } from "@/lib/database.types"
 
 export interface FilterState {
   search: string
-  assigneeEmail: string | null
   priority: "low" | "medium" | "high" | null
   label: string | null
 }
 
 interface FilterBarProps {
   issues: Issue[]
-  members: ProjectMember[]
+  members?: unknown[]
   filters: FilterState
   onFiltersChange: (filters: FilterState) => void
   totalCount: number
@@ -46,7 +45,6 @@ const ALL = "__all__"
 
 export function FilterBar({
   issues,
-  members,
   filters,
   onFiltersChange,
   totalCount,
@@ -55,44 +53,25 @@ export function FilterBar({
   const isMobile = useIsMobile()
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const uniqueEmails = useMemo(() => {
-    const emails = new Set<string>()
-    for (const m of members) {
-      if (m.invited_email) emails.add(m.invited_email)
-    }
-    return Array.from(emails).sort()
-  }, [members])
-
   const uniqueLabels = useMemo(() => {
     const labels = new Set<string>()
     for (const issue of issues) {
-      for (const l of issue.labels) {
-        labels.add(l)
-      }
+      for (const l of issue.labels) labels.add(l)
     }
     return Array.from(labels).sort()
   }, [issues])
 
   const hasActiveFilter =
-    filters.search !== "" ||
-    filters.assigneeEmail !== null ||
-    filters.priority !== null ||
-    filters.label !== null
+    filters.search !== "" || filters.priority !== null || filters.label !== null
 
   const activeFilterCount = [
     filters.search !== "",
-    filters.assigneeEmail !== null,
     filters.priority !== null,
     filters.label !== null,
   ].filter(Boolean).length
 
   const clearAll = () =>
-    onFiltersChange({
-      search: "",
-      assigneeEmail: null,
-      priority: null,
-      label: null,
-    })
+    onFiltersChange({ search: "", priority: null, label: null })
 
   if (isMobile) {
     return (
@@ -130,32 +109,10 @@ export function FilterBar({
                     onFiltersChange({ ...filters, search: e.target.value })
                   }
                   placeholder="Search issues…"
-                  className="h-8 w-40 pl-7 text-xs sm:w-52"
+                  className="h-8 pl-7 text-xs"
                   aria-label="Search issues"
                 />
               </div>
-
-              <Select
-                value={filters.assigneeEmail ?? ALL}
-                onValueChange={(v) =>
-                  onFiltersChange({
-                    ...filters,
-                    assigneeEmail: v === ALL ? null : v,
-                  })
-                }
-              >
-                <SelectTrigger className="h-9 w-full text-sm">
-                  <SelectValue placeholder="All assignees" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL}>All assignees</SelectItem>
-                  {uniqueEmails.map((email) => (
-                    <SelectItem key={email} value={email}>
-                      {email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
 
               <Select
                 value={filters.priority ?? ALL}
@@ -183,7 +140,10 @@ export function FilterBar({
                 <Select
                   value={filters.label ?? ALL}
                   onValueChange={(v) =>
-                    onFiltersChange({ ...filters, label: v === ALL ? null : v })
+                    onFiltersChange({
+                      ...filters,
+                      label: v === ALL ? null : v,
+                    })
                   }
                 >
                   <SelectTrigger className="h-9 w-full text-sm">
@@ -236,28 +196,6 @@ export function FilterBar({
           aria-label="Search issues"
         />
       </div>
-
-      <Select
-        value={filters.assigneeEmail ?? ALL}
-        onValueChange={(v) =>
-          onFiltersChange({
-            ...filters,
-            assigneeEmail: v === ALL ? null : v,
-          })
-        }
-      >
-        <SelectTrigger size="sm" className="gap-1 text-xs">
-          <SelectValue placeholder="All assignees" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ALL}>All assignees</SelectItem>
-          {uniqueEmails.map((email) => (
-            <SelectItem key={email} value={email}>
-              {email}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
 
       <Select
         value={filters.priority ?? ALL}

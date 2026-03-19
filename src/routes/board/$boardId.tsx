@@ -13,10 +13,9 @@ import { FilterBar } from "@/components/board/filter-bar"
 import type { FilterState } from "@/components/board/filter-bar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { updateProject, deleteProject } from "@/lib/queries/projects"
 import type { Issue } from "@/lib/database.types"
-import { Columns3, Settings } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+import { Columns3, Wrench } from "lucide-react"
+import { useProjectMutations } from "@/hooks/use-project-mutations"
 import { useBoardDnd } from "@/hooks/use-board-dnd"
 import { useBoardMutations } from "@/hooks/use-board-mutations"
 import { DragDropProvider, DragOverlay } from "@dnd-kit/react"
@@ -40,14 +39,13 @@ export const Route = createFileRoute("/board/$boardId")({
 function BoardPage() {
   const { boardId } = Route.useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
   const qc = useQueryClient()
+  const { rename: renameProject, remove: removeProject } = useProjectMutations()
   const isMobile = useIsMobile()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [filters, setFilters] = useState<FilterState>({
     search: "",
-    assigneeEmail: null,
     priority: null,
     label: null,
   })
@@ -57,7 +55,6 @@ function BoardPage() {
     boardQueries.columns(boardId)
   )
   const { data: issues = [] } = useQuery(boardQueries.issues(boardId))
-  const { data: members = [] } = useQuery(boardQueries.members(boardId))
 
   const filteredIssues = useMemo(
     () =>
@@ -65,11 +62,6 @@ function BoardPage() {
         if (
           filters.search &&
           !issue.title.toLowerCase().includes(filters.search.toLowerCase())
-        )
-          return false
-        if (
-          filters.assigneeEmail &&
-          issue.assignee_email !== filters.assigneeEmail
         )
           return false
         if (filters.priority && issue.priority !== filters.priority)
@@ -141,24 +133,23 @@ function BoardPage() {
             <h1 className="truncate text-lg font-semibold sm:text-xl">
               {boardName || "Loading\u2026"}
             </h1>
-            <span className="hidden text-xs text-muted-foreground tabular-nums sm:inline">
+            <span className="text-xs text-muted-foreground tabular-nums">
               {localColumns.length}{" "}
               {localColumns.length === 1 ? "column" : "columns"}
             </span>
             <Button
               variant="ghost"
-              size="icon-sm"
+              size="sm"
+              className="ml-auto gap-1.5"
               onClick={() => setSettingsOpen(true)}
-              title="Board settings"
-              aria-label="Board settings"
-              className="ml-auto"
             >
-              <Settings className="size-4" />
+              <Wrench className="size-4" />
+              Board
             </Button>
           </div>
           <FilterBar
             issues={issues}
-            members={members}
+            members={[]}
             filters={filters}
             onFiltersChange={setFilters}
             totalCount={issues.length}
@@ -234,6 +225,7 @@ function BoardPage() {
                         index={idx}
                         issues={getColumnIssues(col.id)}
                         boardId={boardId}
+                        allColumns={localColumns}
                         onIssueClick={(issue) => setSelectedIssue(issue)}
                       />
                     ))}
@@ -259,6 +251,7 @@ function BoardPage() {
                         isFirst={idx === 0}
                         isLast={idx === localColumns.length - 1}
                         projectId={boardId}
+                        allColumns={localColumns}
                         onRename={(name) => handleRenameColumn(col.id, name)}
                         onDelete={() => handleDeleteColumn(col.id)}
                         onMoveLeft={() => handleMoveColumn(col.id, "left")}
@@ -283,37 +276,30 @@ function BoardPage() {
             </DragDropProvider>
           </main>
         </div>
-        {user && (
-          <BoardSettings
-            projectId={boardId}
-            projectName={boardName}
-            currentUserId={user.id}
-            members={members}
-            onRename={async (newName) => {
-              await updateProject(boardId, newName)
-              qc.invalidateQueries({
-                queryKey: boardQueries.name(boardId).queryKey,
-              })
-              setSettingsOpen(false)
-            }}
-            onDelete={async () => {
-              await deleteProject(boardId)
-              navigate({ to: "/dashboard" })
-            }}
-            open={settingsOpen}
-            onOpenChange={setSettingsOpen}
-          />
-        )}
+        <BoardSettings
+          projectId={boardId}
+          projectName={boardName}
+          onRename={(newName) => {
+            renameProject.mutate({ id: boardId, name: newName })
+            setSettingsOpen(false)
+          }}
+          onDelete={() => {
+            removeProject.mutate(boardId)
+            navigate({ to: "/dashboard" })
+          }}
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
         <IssuePanel
           key={selectedIssue?.id}
           issue={selectedIssue}
           columns={localColumns}
-          members={members}
           open={selectedIssue !== null}
           onOpenChange={(open) => {
             if (!open) setSelectedIssue(null)
           }}
-          onIssueUpdated={() => {
+          onIssueUpdated={(updated) => {
+            setSelectedIssue(updated)
             qc.invalidateQueries({
               queryKey: boardQueries.issues(boardId).queryKey,
             })
